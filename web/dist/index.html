@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EyeX API</title>
+    <style>
+      :root {
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        color: #171717;
+        background: #f2f2f2;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #f2f2f2;
+      }
+      a {
+        color: inherit;
+      }
+      header,
+      main,
+      footer {
+        width: min(1080px, calc(100% - 32px));
+        margin: 0 auto;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 28px 0;
+        gap: 24px;
+      }
+      .brand {
+        font-size: 1.5rem;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+      }
+      .tagline {
+        color: #606060;
+      }
+      .hero {
+        padding: 72px 0 36px;
+      }
+      .eyebrow {
+        font-size: 0.8rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #666;
+      }
+      h1 {
+        max-width: 780px;
+        margin: 12px 0 16px;
+        font-size: clamp(2.4rem, 7vw, 5.8rem);
+        line-height: 0.95;
+        letter-spacing: -0.065em;
+      }
+      .lead {
+        max-width: 720px;
+        color: #575757;
+        font-size: 1.12rem;
+        line-height: 1.65;
+      }
+      section {
+        margin: 42px 0;
+      }
+      .panel {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 20px;
+        padding: 24px;
+        box-shadow: 0 12px 40px rgb(0 0 0 / 5%);
+      }
+      .controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 14px;
+        margin-bottom: 20px;
+      }
+      label {
+        display: grid;
+        gap: 8px;
+        font-size: 0.85rem;
+        font-weight: 700;
+      }
+      input,
+      select {
+        width: 100%;
+        min-height: 44px;
+        border: 1px solid #cfcfcf;
+        border-radius: 10px;
+        padding: 10px 12px;
+        font: inherit;
+        background: #fff;
+      }
+      input[type="color"] {
+        padding: 4px;
+      }
+      .swatches {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+      }
+      .swatch {
+        min-height: 230px;
+        border-radius: 16px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        border: 1px solid rgb(0 0 0 / 8%);
+      }
+      .swatch-card {
+        width: fit-content;
+        max-width: 100%;
+        background: rgb(255 255 255 / 92%);
+        padding: 9px 11px;
+        border-radius: 10px;
+        font-size: 0.82rem;
+        box-shadow: 0 4px 18px rgb(0 0 0 / 10%);
+      }
+      .status {
+        min-height: 24px;
+        margin: 14px 0 0;
+        color: #666;
+        font-size: 0.9rem;
+      }
+      .palette {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-top: 14px;
+      }
+      .palette-item {
+        min-height: 86px;
+        border-radius: 12px;
+        display: flex;
+        align-items: flex-end;
+        padding: 10px;
+        font:
+          700 0.8rem ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        border: 1px solid rgb(0 0 0 / 8%);
+        text-shadow: 0 1px 4px rgb(255 255 255 / 80%);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+      }
+      h2 {
+        margin: 0 0 10px;
+        font-size: 1.6rem;
+        letter-spacing: -0.03em;
+      }
+      h3 {
+        margin: 0 0 10px;
+      }
+      p {
+        line-height: 1.6;
+      }
+      pre {
+        overflow: auto;
+        background: #171717;
+        color: #f3f3f3;
+        padding: 18px;
+        border-radius: 14px;
+        font-size: 0.82rem;
+        line-height: 1.55;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      ol {
+        padding-left: 20px;
+        line-height: 1.8;
+      }
+      .notice {
+        padding: 16px;
+        border-left: 4px solid #777;
+        background: #fafafa;
+        color: #555;
+      }
+      footer {
+        padding: 40px 0 60px;
+        color: #666;
+        border-top: 1px solid #ddd;
+      }
+      @media (max-width: 760px) {
+        .controls,
+        .swatches,
+        .grid,
+        .palette {
+          grid-template-columns: 1fr;
+        }
+        .swatch {
+          min-height: 160px;
+        }
+        header {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">EyeX</div>
+      <div class="tagline">Fondos accesibles para daltónicos</div>
+    </header>
+    <main>
+      <div class="hero">
+        <div class="eyebrow">API especializada en fondos</div>
+        <h1>Simula y adapta colores de fondo.</h1>
+        <p class="lead">
+          EyeX recibe un color hexadecimal y un tipo de daltonismo. Devuelve una
+          simulación y una alternativa de fondo calculada para aumentar su
+          diferenciación perceptual sin convertir la API en una suite general de
+          accesibilidad.
+        </p>
+      </div>
+
+      <section class="panel" id="demo">
+        <h2>Demo interactivo</h2>
+        <div class="controls">
+          <label
+            >Color visual<input id="color" type="color" value="#336699"
+          /></label>
+          <label
+            >HEX<input
+              id="hex"
+              value="#336699"
+              maxlength="7"
+              spellcheck="false"
+          /></label>
+          <label
+            >Tipo de daltonismo
+            <select id="type">
+              <option value="protanopia">Protanopia</option>
+              <option value="protanomaly">Protanomalía</option>
+              <option value="deuteranopia" selected>Deuteranopia</option>
+              <option value="deuteranomaly">Deuteranomalía</option>
+              <option value="tritanopia">Tritanopia</option>
+              <option value="tritanomaly">Tritanomalía</option>
+              <option value="acromatopsia">Acromatopsia</option>
+            </select>
+          </label>
+        </div>
+        <div class="swatches">
+          <div class="swatch" id="original">
+            <span class="swatch-card"
+              >Original · <b id="original-value">#336699</b></span
+            >
+          </div>
+          <div class="swatch" id="simulated">
+            <span class="swatch-card"
+              >Simulado · <b id="simulated-value">—</b></span
+            >
+          </div>
+          <div class="swatch" id="corrected">
+            <span class="swatch-card"
+              >Corregido · <b id="corrected-value">—</b><br />ratio diagnóstico:
+              <b id="ratio-value">—</b></span
+            >
+          </div>
+        </div>
+        <p class="status" id="status"></p>
+        <h3>Variantes sugeridas</h3>
+        <div class="palette" id="palette"></div>
+      </section>
+
+      <section>
+        <div class="grid">
+          <div class="panel">
+            <h2>Simulación</h2>
+            <pre><code>POST /api/v1/simulate
+{
+  "hex": "#336699",
+  "type": "protanopia"
+}</code></pre>
+          </div>
+          <div class="panel">
+            <h2>Corrección</h2>
+            <pre><code>POST /api/v1/correct
+{
+  "hex": "#336699",
+  "type": "deuteranopia"
+}</code></pre>
+          </div>
+          <div class="panel">
+            <h2>Paleta</h2>
+            <pre><code>POST /api/v1/palette
+{
+  "base_hex": "#336699",
+  "type": "tritanopia"
+}</code></pre>
+          </div>
+          <div class="panel">
+            <h2>Tipos disponibles</h2>
+            <pre><code>GET /api/v1/types
+GET /health</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Cómo integrar</h2>
+        <ol>
+          <li>
+            Pregunta al usuario qué modo daltónico desea utilizar y guarda esa
+            preferencia.
+          </li>
+          <li>
+            Envía el color de fondo original a <code>/api/v1/correct</code>.
+          </li>
+          <li>
+            Aplica el valor <code>corrected</code> a una variable CSS o al tema
+            de tu aplicación.
+          </li>
+          <li>
+            Cachea cada combinación <code>(hex, type)</code> para evitar
+            solicitudes repetidas.
+          </li>
+          <li>
+            Para un tema con varios fondos, solicita una paleta una vez y
+            reutilízala.
+          </li>
+        </ol>
+        <div class="notice">
+          EyeX modifica únicamente colores de fondo. No certifica accesibilidad
+          WCAG de textos, iconos, controles ni otros elementos de interfaz.
+        </div>
+      </section>
+    </main>
+    <footer>EyeX · API de adaptación de fondos por tipo de daltonismo.</footer>
+    <script type="module" src="/assets/app.js"></script>
+  </body>
+</html>

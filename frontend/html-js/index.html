@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="EyeX ofrece temas de pantalla preparados para distintos tipos de daltonismo mediante una API HTTP simple.">
+  <title>EyeX API — Modo daltónico por tema</title>
+  <link rel="icon" type="image/png" href="/assets/logo.png">
+  <link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a class="brand" href="/" aria-label="EyeX inicio">EyeX <span>API</span></a>
+      <nav class="nav" aria-label="Navegación principal">
+        <a href="#demo">Demo</a>
+        <a href="#docs">API</a>
+        <a href="#integracion">Integración</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container hero-grid">
+        <div>
+          <p class="kicker">Tema de pantalla para visión de color</p>
+          <h1>Una paleta completa para activar modo daltónico.</h1>
+          <p class="intro">EyeX devuelve siete colores coordinados para aplicar el tema completo de una interfaz. El cliente elige un tipo de visión y recibe una paleta lista para usar como variables CSS.</p>
+          <div class="hero-actions">
+            <a class="button primary" href="#demo">Probar la API</a>
+            <a class="button" href="#docs">Ver contrato</a>
+          </div>
+        </div>
+        <div class="endpoint-box" aria-label="Endpoint principal">
+          <div class="endpoint-title">Endpoint principal</div>
+          <code>GET /api/v1/theme/{type}</code>
+          <div class="endpoint-note">JSON · HTTP · Sin autenticación en el MVP</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="demo" class="section">
+      <div class="container">
+        <div class="section-heading">
+          <div>
+            <h2>Demo del tema</h2>
+            <p>Selecciona un modo. Esta misma página aplica la paleta que devuelve EyeX.</p>
+          </div>
+          <label class="mode-field" for="theme-type">
+            <span>Modo de visión</span>
+            <select id="theme-type" aria-describedby="theme-status">
+              <option value="normal">Cargando...</option>
+            </select>
+          </label>
+        </div>
+
+        <div id="theme-status" class="status" role="status" aria-live="polite">Consultando tipos disponibles...</div>
+
+        <div class="demo-layout">
+          <article class="sample-window">
+            <div class="sample-toolbar">
+              <strong>Aplicación de ejemplo</strong>
+              <span>EyeX Theme</span>
+            </div>
+            <div class="sample-content">
+              <h3>Resumen de actividad</h3>
+              <p>Los componentes de esta maqueta utilizan las siete variables CSS devueltas por la API.</p>
+              <div class="sample-actions">
+                <button type="button" class="sample-primary">Acción principal</button>
+                <button type="button" class="sample-secondary">Secundaria</button>
+              </div>
+              <div class="messages">
+                <div class="message error">Estado de error</div>
+                <div class="message success">Estado correcto</div>
+              </div>
+            </div>
+          </article>
+
+          <aside class="palette-panel">
+            <h3>Paleta recibida</h3>
+            <dl id="palette-list" class="palette-list"></dl>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section id="docs" class="section section-alt">
+      <div class="container">
+        <h2>Contrato de la API</h2>
+        <p class="section-copy">Dos endpoints, respuestas pequeñas y el mismo formato en Go, PHP, TypeScript y Java.</p>
+
+        <div class="docs-grid">
+          <article class="doc-card">
+            <div class="method-line"><span class="method">GET</span><code>/api/v1/theme/{type}</code></div>
+            <p>Devuelve la paleta completa del modo solicitado.</p>
+            <pre><code>{
+  "type": "deuteranopia",
+  "palette": {
+    "background": "#1E1E1E",
+    "surface": "#2A2A2A",
+    "text": "#F5F5F5",
+    "primary": "#4A90D9",
+    "secondary": "#D9A24A",
+    "error": "#D94A4A",
+    "success": "#4AD98C"
+  }
+}</code></pre>
+          </article>
+
+          <article class="doc-card">
+            <div class="method-line"><span class="method">GET</span><code>/api/v1/theme/types</code></div>
+            <p>Lista los modos disponibles en el contrato público.</p>
+            <pre><code>{
+  "types": [
+    "normal",
+    "protanopia",
+    "deuteranopia",
+    "tritanopia",
+    "achromatopsia"
+  ]
+}</code></pre>
+            <h3>Error de tipo</h3>
+            <pre><code>{
+  "error": "invalid_type",
+  "message": "Tipo de daltonismo no soportado"
+}</code></pre>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="integracion" class="section">
+      <div class="container integration-grid">
+        <div>
+          <h2>Integración en frontend</h2>
+          <p>Guarda el modo elegido por el usuario, solicita una sola paleta y aplica sus valores al elemento raíz de la página.</p>
+          <ol class="steps">
+            <li>Consulta <code>/api/v1/theme/types</code>.</li>
+            <li>Solicita <code>/api/v1/theme/deuteranopia</code> o el modo elegido.</li>
+            <li>Asigna cada color a una variable CSS global.</li>
+            <li>Reutiliza esas variables en todos los componentes de la interfaz.</li>
+          </ol>
+        </div>
+        <pre class="integration-code"><code>const data = await fetch(
+  "/api/v1/theme/deuteranopia"
+).then(r => r.json());
+
+for (const [name, value] of
+     Object.entries(data.palette)) {
+  document.documentElement.style
+    .setProperty(`--eyex-${name}`, value);
+}</code></pre>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <img class="footer-logo" src="/assets/logo.png" alt="Logo EyeX">
+      <div class="footer-copy">
+        <strong>EyeX</strong>
+        <span>API de tema de pantalla para modo daltónico.</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/assets/app.js" defer></script>
+</body>
+</html>

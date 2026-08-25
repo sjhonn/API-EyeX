@@ -1,0 +1,6 @@
+.git
+.github
+implementations
+frontend/vue
+*.log
+.env

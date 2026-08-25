@@ -1,0 +1,13 @@
+# Build outputs
+bin/
+coverage.out
+implementations/typescript-node/dist/
+implementations/typescript-node/node_modules/
+implementations/java/target/
+frontend/vue/dist/
+frontend/vue/node_modules/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/

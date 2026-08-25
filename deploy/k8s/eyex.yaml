@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eyex
+  labels:
+    app: eyex
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: eyex
+  template:
+    metadata:
+      labels:
+        app: eyex
+    spec:
+      containers:
+        - name: eyex
+          image: ghcr.io/OWNER/eyex:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: EYEX_PORT
+              value: "8080"
+            - name: EYEX_ALLOWED_ORIGIN
+              value: "*"
+          readinessProbe:
+            httpGet:
+              path: /api/v1/theme/types
+              port: 8080
+            initialDelaySeconds: 2
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/v1/theme/types
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eyex
+spec:
+  selector:
+    app: eyex
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: eyex
+spec:
+  rules:
+    - host: eyex.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: eyex
+                port:
+                  number: 80

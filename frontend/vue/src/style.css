@@ -1,0 +1,37 @@
+:root {
+  --eyex-background: #F4F5F7;
+  --eyex-surface: #FFFFFF;
+  --eyex-text: #20252B;
+  --eyex-primary: #2E6DA4;
+  --eyex-secondary: #6B7785;
+  --eyex-error: #C94C4C;
+  --eyex-success: #3C8D5A;
+  font-family: Arial, Helvetica, sans-serif;
+  color: var(--eyex-text);
+  background: var(--eyex-background);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--eyex-background); color: var(--eyex-text); }
+.wrap { width: min(920px, calc(100% - 32px)); margin: 0 auto; }
+.bar { background: #222831; color: white; border-bottom: 3px solid var(--eyex-primary); }
+.bar .wrap { min-height: 58px; display: flex; align-items: center; justify-content: space-between; }
+.bar span { color: #c6cbd1; font-size: 12px; }
+.main { padding: 42px 0; }
+.intro { display: flex; justify-content: space-between; align-items: end; gap: 30px; }
+h1 { margin: 0; font-size: 32px; font-weight: 600; }
+h2 { font-size: 19px; margin-top: 0; }
+p { color: var(--eyex-secondary); line-height: 1.6; }
+label { display: grid; gap: 5px; min-width: 220px; font-size: 12px; font-weight: 700; color: var(--eyex-secondary); }
+select { height: 38px; border: 1px solid #9aa2aa; background: var(--eyex-surface); color: var(--eyex-text); padding: 0 9px; }
+.status { min-height: 20px; font-size: 12px; }
+.panel { margin-top: 20px; padding: 22px; border: 1px solid #8b949e66; background: var(--eyex-surface); }
+.actions, .alerts { display: flex; gap: 10px; margin-top: 16px; }
+button, .alerts div { border: 0; padding: 10px 14px; color: #fff; font-weight: 700; }
+.primary { background: var(--eyex-primary); }
+.secondary { background: var(--eyex-secondary); }
+.error { background: var(--eyex-error); }
+.success { background: var(--eyex-success); }
+.row { display: grid; grid-template-columns: 26px 1fr auto; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid #8b949e55; }
+.row:first-of-type { border-top: 0; }
+.chip { width: 24px; height: 24px; border: 1px solid #777; }
+@media (max-width: 640px) { .intro { align-items: stretch; flex-direction: column; } label { min-width: 0; } .actions, .alerts { flex-direction: column; } }
