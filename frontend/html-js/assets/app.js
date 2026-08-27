@@ -1,26 +1,19 @@
 (function () {
   'use strict';
 
-  var select = document.getElementById('theme-type');
-  var status = document.getElementById('theme-status');
-  var paletteList = document.getElementById('palette-list');
   var paletteKeys = ['background', 'surface', 'text', 'primary', 'secondary', 'error', 'success'];
-
-  function labelFor(type) {
-    var labels = {
-      normal: 'Normal',
-      protanopia: 'Protanopia',
-      deuteranopia: 'Deuteranopia',
-      tritanopia: 'Tritanopia',
-      achromatopsia: 'Acromatopsia'
-    };
-    return labels[type] || type;
-  }
+  var defaultPalette = { background: '#F4F5F7', surface: '#FFFFFF', text: '#20252B', primary: '#2E6DA4', secondary: '#6B7785', error: '#C94C4C', success: '#3C8D5A' };
+  var labels = { normal: 'Normal', protanopia: 'Protanopia', deuteranopia: 'Deuteranopia', tritanopia: 'Tritanopia', achromatopsia: 'Acromatopsia', low_vision: 'Baja visión' };
+  var typeSelect = document.getElementById('theme-type');
+  var severitySelect = document.getElementById('severity');
+  var modeSelect = document.getElementById('mode');
+  var highContrast = document.getElementById('high-contrast');
+  var status = document.getElementById('theme-status');
+  var contrastBadge = document.getElementById('contrast-badge');
+  var paletteList = document.getElementById('palette-list');
 
   function applyPalette(palette) {
-    paletteKeys.forEach(function (key) {
-      document.documentElement.style.setProperty('--eyex-' + key, palette[key]);
-    });
+    paletteKeys.forEach(function (key) { document.documentElement.style.setProperty('--eyex-' + key, palette[key]); });
   }
 
   function renderPalette(palette) {
@@ -30,65 +23,101 @@
       var chip = document.createElement('span');
       var term = document.createElement('dt');
       var value = document.createElement('dd');
-
-      row.className = 'palette-row';
-      chip.className = 'palette-chip';
-      chip.style.backgroundColor = palette[key];
-      term.textContent = key;
-      value.textContent = palette[key];
-
-      row.appendChild(chip);
-      row.appendChild(term);
-      row.appendChild(value);
-      paletteList.appendChild(row);
+      row.className = 'palette-row'; chip.className = 'palette-chip'; chip.style.backgroundColor = palette[key]; term.textContent = key; value.textContent = palette[key];
+      row.appendChild(chip); row.appendChild(term); row.appendChild(value); paletteList.appendChild(row);
     });
   }
 
-  async function getJSON(path) {
-    var response = await fetch(path, { headers: { Accept: 'application/json' } });
+  async function request(path, options) {
+    var response = await fetch(path, Object.assign({ headers: { Accept: 'application/json' } }, options || {}));
     var payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.message || payload.error || ('HTTP ' + response.status));
-    }
+    if (!response.ok) throw new Error(payload.message || payload.error || ('HTTP ' + response.status));
     return payload;
   }
 
-  async function loadTheme(type) {
-    status.textContent = 'Cargando tema ' + labelFor(type) + '...';
+  function themePath() {
+    var params = new URLSearchParams();
+    params.set('severity', severitySelect.value);
+    params.set('mode', modeSelect.value);
+    params.set('high_contrast', highContrast.checked ? 'true' : 'false');
+    return '/api/v1/theme/' + encodeURIComponent(typeSelect.value) + '?' + params.toString();
+  }
+
+  async function loadTheme() {
+    status.textContent = 'Aplicando tema...';
     try {
-      var data = await getJSON('/api/v1/theme/' + encodeURIComponent(type));
-      applyPalette(data.palette);
-      renderPalette(data.palette);
-      status.textContent = 'Tema activo: ' + labelFor(data.type) + '.';
+      var data = await request(themePath());
+      applyPalette(data.palette); renderPalette(data.palette);
+      contrastBadge.textContent = data.contrast_ok ? 'WCAG AA: OK' : 'WCAG AA: revisar';
+      contrastBadge.className = data.contrast_ok ? 'ok' : 'bad';
+      status.textContent = 'Tema activo: ' + (labels[data.type] || data.type) + '.';
       localStorage.setItem('eyex-theme', data.type);
+      localStorage.setItem('eyex-severity', severitySelect.value);
+      localStorage.setItem('eyex-mode', modeSelect.value);
+      localStorage.setItem('eyex-high-contrast', highContrast.checked ? 'true' : 'false');
     } catch (error) {
       status.textContent = 'No se pudo aplicar el tema: ' + error.message;
     }
   }
 
-  async function init() {
-    try {
-      var data = await getJSON('/api/v1/theme/types');
-      select.innerHTML = '';
-      data.types.forEach(function (type) {
-        var option = document.createElement('option');
-        option.value = type;
-        option.textContent = labelFor(type);
-        select.appendChild(option);
-      });
-
-      var saved = localStorage.getItem('eyex-theme');
-      var initial = data.types.indexOf(saved) >= 0 ? saved : 'normal';
-      select.value = initial;
-      await loadTheme(initial);
-    } catch (error) {
-      status.textContent = 'No se pudo consultar EyeX: ' + error.message;
-    }
+  function createCustomInputs() {
+    var host = document.getElementById('custom-colors');
+    paletteKeys.forEach(function (key) {
+      var label = document.createElement('label');
+      var text = document.createElement('span');
+      var input = document.createElement('input');
+      text.textContent = key; input.type = 'color'; input.name = key; input.value = defaultPalette[key];
+      label.className = 'color-field'; label.appendChild(text); label.appendChild(input); host.appendChild(label);
+    });
   }
 
-  select.addEventListener('change', function () {
-    loadTheme(select.value);
-  });
+  async function submitCustom(event) {
+    event.preventDefault();
+    var form = event.currentTarget;
+    var customStatus = document.getElementById('custom-status');
+    var palette = {};
+    paletteKeys.forEach(function (key) { palette[key] = form.elements[key].value.toUpperCase(); });
+    customStatus.textContent = 'Adaptando...';
+    try {
+      var data = await request('/api/v1/theme/custom', {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: typeSelect.value, severity: severitySelect.value, mode: modeSelect.value, high_contrast: highContrast.checked, palette: palette })
+      });
+      applyPalette(data.palette); renderPalette(data.palette);
+      contrastBadge.textContent = data.contrast_ok ? 'WCAG AA: OK' : 'WCAG AA: revisar';
+      customStatus.textContent = 'Paleta adaptada y aplicada.';
+    } catch (error) { customStatus.textContent = error.message; }
+  }
 
+  async function submitTest(event) {
+    event.preventDefault();
+    var form = event.currentTarget;
+    var answers = {};
+    ['reds_look_darker', 'green_brown_confusion', 'blue_yellow_confusion', 'colors_look_gray'].forEach(function (name) { answers[name] = form.elements[name].checked; });
+    var result = document.getElementById('test-result'); result.textContent = 'Calculando sugerencia...';
+    try {
+      var data = await request('/api/v1/test/suggest', { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify({ answers: answers }) });
+      result.textContent = 'Sugerencia: ' + (labels[data.suggested_type] || data.suggested_type) + '. ' + data.disclaimer;
+    } catch (error) { result.textContent = 'No se pudo obtener una sugerencia: ' + error.message; }
+  }
+
+  async function init() {
+    createCustomInputs();
+    try {
+      var data = await request('/api/v1/theme/types');
+      typeSelect.innerHTML = '';
+      data.types.forEach(function (type) { var option = document.createElement('option'); option.value = type; option.textContent = labels[type] || type; typeSelect.appendChild(option); });
+      var saved = localStorage.getItem('eyex-theme'); typeSelect.value = data.types.indexOf(saved) >= 0 ? saved : 'normal';
+      severitySelect.value = localStorage.getItem('eyex-severity') || 'moderate';
+      modeSelect.value = localStorage.getItem('eyex-mode') || (typeSelect.value === 'normal' ? 'light' : 'dark');
+      highContrast.checked = localStorage.getItem('eyex-high-contrast') === 'true';
+      await loadTheme();
+    } catch (error) { status.textContent = 'No se pudo consultar EyeX: ' + error.message; }
+  }
+
+  [typeSelect, severitySelect, modeSelect, highContrast].forEach(function (control) { control.addEventListener('change', loadTheme); });
+  document.getElementById('custom-form').addEventListener('submit', submitCustom);
+  document.getElementById('quick-test').addEventListener('submit', submitTest);
   init();
 }());

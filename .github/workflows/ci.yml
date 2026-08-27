@@ -70,9 +70,58 @@ jobs:
       - run: npm install
       - run: npm run build
 
+  sdk-react:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk/react
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install
+      - run: npm run build
+
+  sdk-react-native:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk/react-native
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install
+      - run: npm run build
+
+  sdk-flutter:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk/flutter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - run: dart pub get
+      - run: dart analyze
+
+  static-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node --check frontend/html-js/assets/app.js
+      - run: node --check frontend/html-js/eyex.js
+      - run: node --check extension/browser/content.js
+      - run: node --check extension/browser/popup.js
+
   image:
     if: github.event_name != 'pull_request'
-    needs: [go, php, typescript, java, vue]
+    needs: [go, php, typescript, java, vue, sdk-react, sdk-react-native, sdk-flutter, static-assets]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -35,3 +35,7 @@ button, .alerts div { border: 0; padding: 10px 14px; color: #fff; font-weight: 7
 .row:first-of-type { border-top: 0; }
 .chip { width: 24px; height: 24px; border: 1px solid #777; }
 @media (max-width: 640px) { .intro { align-items: stretch; flex-direction: column; } label { min-width: 0; } .actions, .alerts { flex-direction: column; } }
+.filters { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:22px; align-items:end; }
+.check { min-height:38px; display:flex; align-items:center; gap:7px; }
+@media (max-width:760px){.filters{grid-template-columns:1fr 1fr}}
+@media (max-width:480px){.filters{grid-template-columns:1fr}}

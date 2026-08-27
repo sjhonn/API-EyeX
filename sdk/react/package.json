@@ -1,0 +1,11 @@
+{
+  "name": "@eyex/react",
+  "version": "0.0.0",
+  "private": false,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": { "build": "tsc -p tsconfig.json" },
+  "peerDependencies": { "react": ">=18" },
+  "devDependencies": { "react": "^19.1.1", "typescript": "^5.9.2", "@types/react": "^19.1.10" }
+}

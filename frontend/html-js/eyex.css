@@ -1,0 +1,17 @@
+:root,
+:root[data-eyex-theme="normal"][data-eyex-mode="light"] {
+  --eyex-background:#F4F5F7;--eyex-surface:#FFFFFF;--eyex-text:#20252B;--eyex-primary:#2E6DA4;--eyex-secondary:#6B7785;--eyex-error:#C94C4C;--eyex-success:#3C8D5A;
+}
+:root[data-eyex-theme="normal"][data-eyex-mode="dark"] {--eyex-background:#181A1D;--eyex-surface:#24272B;--eyex-text:#F5F7FA;--eyex-primary:#5CA9E6;--eyex-secondary:#AAB4BE;--eyex-error:#FF7B72;--eyex-success:#56D364;}
+:root[data-eyex-theme="protanopia"][data-eyex-mode="light"] {--eyex-background:#F7F8FA;--eyex-surface:#FFFFFF;--eyex-text:#1D2329;--eyex-primary:#256EA6;--eyex-secondary:#916B00;--eyex-error:#A84824;--eyex-success:#237A70;}
+:root[data-eyex-theme="protanopia"] {--eyex-background:#1E1E1E;--eyex-surface:#2A2A2A;--eyex-text:#F5F5F5;--eyex-primary:#3F8FD2;--eyex-secondary:#E3B341;--eyex-error:#D96C3F;--eyex-success:#4FB3A5;}
+:root[data-eyex-theme="deuteranopia"][data-eyex-mode="light"] {--eyex-background:#F7F8FA;--eyex-surface:#FFFFFF;--eyex-text:#1D2329;--eyex-primary:#236FAE;--eyex-secondary:#8A6200;--eyex-error:#A83D3D;--eyex-success:#187A55;}
+:root[data-eyex-theme="deuteranopia"] {--eyex-background:#1E1E1E;--eyex-surface:#2A2A2A;--eyex-text:#F5F5F5;--eyex-primary:#4A90D9;--eyex-secondary:#D9A24A;--eyex-error:#D94A4A;--eyex-success:#4AD98C;}
+:root[data-eyex-theme="tritanopia"][data-eyex-mode="light"] {--eyex-background:#F7F7F8;--eyex-surface:#FFFFFF;--eyex-text:#202124;--eyex-primary:#9B3F80;--eyex-secondary:#167A65;--eyex-error:#AA4234;--eyex-success:#347A42;}
+:root[data-eyex-theme="tritanopia"] {--eyex-background:#202124;--eyex-surface:#2D2F33;--eyex-text:#F5F5F5;--eyex-primary:#D65DB1;--eyex-secondary:#4CC9A7;--eyex-error:#E05A47;--eyex-success:#64A66F;}
+:root[data-eyex-theme="achromatopsia"][data-eyex-mode="light"] {--eyex-background:#FAFAFA;--eyex-surface:#FFFFFF;--eyex-text:#181818;--eyex-primary:#4A4A4A;--eyex-secondary:#666666;--eyex-error:#303030;--eyex-success:#555555;}
+:root[data-eyex-theme="achromatopsia"] {--eyex-background:#202020;--eyex-surface:#303030;--eyex-text:#F2F2F2;--eyex-primary:#D0D0D0;--eyex-secondary:#A8A8A8;--eyex-error:#E0E0E0;--eyex-success:#BEBEBE;}
+:root[data-eyex-theme="low_vision"][data-eyex-mode="light"] {--eyex-background:#FFFFFF;--eyex-surface:#F2F2F2;--eyex-text:#000000;--eyex-primary:#005FCC;--eyex-secondary:#6D4C00;--eyex-error:#A80000;--eyex-success:#006B35;}
+:root[data-eyex-theme="low_vision"] {--eyex-background:#000000;--eyex-surface:#121212;--eyex-text:#FFFFFF;--eyex-primary:#66B2FF;--eyex-secondary:#FFD166;--eyex-error:#FF6B6B;--eyex-success:#65E6A3;}
+:root[data-eyex-high-contrast="true"][data-eyex-mode="dark"] {--eyex-background:#000000;--eyex-surface:#121212;--eyex-text:#FFFFFF;}
+:root[data-eyex-high-contrast="true"][data-eyex-mode="light"] {--eyex-background:#FFFFFF;--eyex-surface:#F2F2F2;--eyex-text:#000000;}

@@ -2,44 +2,45 @@
 
 <img src="frontend/html-js/assets/logo.png" alt="Logo de EyeX" width="180">
 
-EyeX es una API sencilla para activar un **modo daltónico por tema** en una página web, aplicación o panel. En lugar de transformar colores uno por uno, EyeX devuelve una paleta completa para toda la pantalla.
+EyeX es una API de temas de pantalla pensada para interfaces que necesitan ofrecer opciones de color para personas con daltonismo o baja visión. En lugar de modificar colores uno por uno, devuelve una paleta completa con fondo, superficie, texto, acciones y estados para aplicarla a toda la interfaz.
 
-La idea es simple: el usuario elige un modo de visión, la aplicación consulta EyeX una vez y recibe siete colores coordinados para fondo, superficies, texto, acciones y estados.
+El proyecto incluye un backend principal en Go, implementaciones equivalentes en PHP, TypeScript con Node y Java, una web de demostración, un cliente Vue, un CSS estático, un widget embebible, una extensión de navegador y SDKs para React, React Native y Flutter.
 
-## Modos disponibles
+EyeX no diagnostica condiciones visuales. El test incluido es únicamente orientativo y no reemplaza una evaluación médica ni una auditoría completa de accesibilidad.
 
-EyeX ofrece cinco temas:
+## Funciones principales
 
-- `normal`
-- `protanopia`
-- `deuteranopia`
-- `tritanopia`
-- `achromatopsia`
+- Temas para `normal`, `protanopia`, `deuteranopia`, `tritanopia`, `achromatopsia` y `low_vision`.
+- Intensidad configurable con `mild`, `moderate` y `severe`.
+- Variante `dark` o `light`.
+- Opción de alto contraste combinable con cualquier tipo de visión.
+- Validación de contraste WCAG AA para texto sobre `background` y `surface` con umbral mínimo de 4.5:1.
+- Adaptación de una paleta de marca enviada por el cliente.
+- Test orientativo de cuatro preguntas.
+- CSS estático para usar EyeX sin consumir la API.
+- Widget flotante integrable con una sola etiqueta `<script>`.
+- Extensión compatible con navegadores basados en Chromium y preparada para Firefox.
+- SDKs para React, React Native y Flutter.
+- Misma lógica de API disponible en Go, PHP, TypeScript/Node y Java.
 
-EyeX no diagnostica daltonismo y no reemplaza una evaluación profesional de accesibilidad. La aplicación debe permitir que la persona elija el modo que prefiera.
+## Ejecutar EyeX con Docker Desktop
 
-## Probar EyeX con Docker Desktop
-
-El contenedor principal utiliza la implementación en Go y también sirve la página web incluida en el proyecto.
-
-Desde la carpeta raíz:
+Desde la raíz del repositorio:
 
 ```bash
 docker build -t eyex:local .
 docker run --rm --name eyex -p 8080:8080 eyex:local
 ```
 
-Después abre:
+Abre:
 
 ```text
 http://localhost:8080
 ```
 
-La página permite cambiar entre los cinco modos y aplica en tiempo real la paleta devuelta por la API.
+La web principal y la API se sirven desde el mismo proceso Go.
 
-Para detener el contenedor, usa `Ctrl + C` en la terminal donde se está ejecutando.
-
-## Contrato de la API
+## Contrato base compatible
 
 ### Obtener un tema
 
@@ -47,15 +48,13 @@ Para detener el contenedor, usa `Ctrl + C` en la terminal donde se está ejecuta
 GET /api/v1/theme/{type}
 ```
 
-`{type}` debe ser uno de los cinco modos soportados.
+Los clientes que ya consumían esta ruta pueden seguir haciéndolo sin parámetros. Las paletas originales para los cinco tipos iniciales se mantienen sin cambios. La respuesta incorpora el campo aditivo `contrast_ok`.
 
 Ejemplo:
 
 ```http
 GET /api/v1/theme/deuteranopia
 ```
-
-Respuesta `200 OK`:
 
 ```json
 {
@@ -68,11 +67,12 @@ Respuesta `200 OK`:
     "secondary": "#D9A24A",
     "error": "#D94A4A",
     "success": "#4AD98C"
-  }
+  },
+  "contrast_ok": true
 }
 ```
 
-Si el tipo no existe, EyeX responde `400 Bad Request`:
+Si el tipo no existe:
 
 ```json
 {
@@ -81,33 +81,119 @@ Si el tipo no existe, EyeX responde `400 Bad Request`:
 }
 ```
 
-### Consultar los modos disponibles
+### Consultar tipos disponibles
 
 ```http
 GET /api/v1/theme/types
 ```
 
-Respuesta `200 OK`:
-
 ```json
 {
-  "types": ["normal", "protanopia", "deuteranopia", "tritanopia", "achromatopsia"]
+  "types": [
+    "normal",
+    "protanopia",
+    "deuteranopia",
+    "tritanopia",
+    "achromatopsia",
+    "low_vision"
+  ]
 }
 ```
 
-## Cómo se usa en una interfaz
+## Intensidad, tema claro/oscuro y alto contraste
 
-Una integración normal tiene cuatro pasos:
+`GET /api/v1/theme/{type}` acepta parámetros opcionales:
 
-1. Preguntar qué modo desea utilizar la persona.
-2. Guardar esa preferencia en el perfil o en `localStorage`.
-3. Consultar `GET /api/v1/theme/{type}` una vez cuando carga el tema.
-4. Aplicar los siete valores recibidos como variables CSS globales.
+| Parámetro | Valores | Uso |
+| --- | --- | --- |
+| `severity` | `mild`, `moderate`, `severe` | Define cuánto se aleja la paleta de la apariencia normal hacia la paleta optimizada. |
+| `mode` | `dark`, `light` | Selecciona un tema oscuro o claro. |
+| `high_contrast` | `true`, `false` | Refuerza contraste y puede combinarse con cualquier tipo. |
 
-Ejemplo en JavaScript:
+Ejemplo:
+
+```http
+GET /api/v1/theme/protanopia?severity=moderate&mode=light&high_contrast=true
+```
+
+Cuando no se envían estos parámetros, EyeX conserva el comportamiento y los colores originales del contrato base.
+
+`low_vision` prioriza alto contraste de manera predeterminada.
+
+## Qué significa `contrast_ok`
+
+EyeX calcula la luminancia relativa y la relación de contraste siguiendo la fórmula de WCAG. `contrast_ok` es `true` cuando el color `text` alcanza al menos 4.5:1 tanto contra `background` como contra `surface`.
+
+Este indicador no significa que toda una aplicación cumpla WCAG. Imágenes, tamaños de fuente, iconos, estados de foco, estructura semántica y otros componentes siguen requiriendo revisión propia.
+
+## Adaptar una paleta de marca
+
+```http
+POST /api/v1/theme/custom
+Content-Type: application/json
+```
+
+Ejemplo:
+
+```json
+{
+  "type": "deuteranopia",
+  "severity": "moderate",
+  "mode": "dark",
+  "high_contrast": true,
+  "palette": {
+    "background": "#101820",
+    "surface": "#182430",
+    "text": "#F8F9FA",
+    "primary": "#E63946",
+    "secondary": "#2A9D8F",
+    "error": "#D62828",
+    "success": "#2A9D8F"
+  }
+}
+```
+
+EyeX conserva los colores base cuando es razonable, adapta los colores semánticos al tipo elegido, ajusta el modo claro u oscuro y corrige el color de texto cuando sea necesario para alcanzar el umbral configurado.
+
+La respuesta usa el mismo formato que `GET /api/v1/theme/{type}`.
+
+Todos los colores de entrada deben usar formato `#RRGGBB`.
+
+## Test orientativo
+
+```http
+POST /api/v1/test/suggest
+Content-Type: application/json
+```
+
+```json
+{
+  "answers": {
+    "reds_look_darker": false,
+    "green_brown_confusion": false,
+    "blue_yellow_confusion": true,
+    "colors_look_gray": false
+  }
+}
+```
+
+Respuesta:
+
+```json
+{
+  "suggested_type": "tritanopia",
+  "disclaimer": "Resultado orientativo. No es un diagnóstico médico."
+}
+```
+
+Las cuatro preguntas sirven únicamente para sugerir qué tema probar primero. No realizan un diagnóstico.
+
+## Aplicar una paleta con JavaScript
 
 ```javascript
-const response = await fetch('/api/v1/theme/deuteranopia');
+const response = await fetch(
+  '/api/v1/theme/deuteranopia?severity=moderate&mode=dark'
+);
 const data = await response.json();
 
 for (const [name, value] of Object.entries(data.palette)) {
@@ -115,7 +201,7 @@ for (const [name, value] of Object.entries(data.palette)) {
 }
 ```
 
-Después, los componentes utilizan esas variables:
+Después los componentes pueden usar las variables:
 
 ```css
 body {
@@ -132,97 +218,215 @@ body {
 }
 ```
 
-Así se cambia el tema completo sin hacer una llamada por cada botón, tarjeta o sección.
+## CSS estático
 
-## Paletas incluidas
+EyeX sirve un archivo preparado en:
 
-| Modo | Background | Surface | Text | Primary | Secondary | Error | Success |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| normal | `#F4F5F7` | `#FFFFFF` | `#20252B` | `#2E6DA4` | `#6B7785` | `#C94C4C` | `#3C8D5A` |
-| protanopia | `#1E1E1E` | `#2A2A2A` | `#F5F5F5` | `#3F8FD2` | `#E3B341` | `#D96C3F` | `#4FB3A5` |
-| deuteranopia | `#1E1E1E` | `#2A2A2A` | `#F5F5F5` | `#4A90D9` | `#D9A24A` | `#D94A4A` | `#4AD98C` |
-| tritanopia | `#202124` | `#2D2F33` | `#F5F5F5` | `#D65DB1` | `#4CC9A7` | `#E05A47` | `#64A66F` |
-| achromatopsia | `#202020` | `#303030` | `#F2F2F2` | `#D0D0D0` | `#A8A8A8` | `#E0E0E0` | `#BEBEBE` |
+```text
+/eyex.css
+```
 
-Estas paletas son los valores por defecto del producto. Mantenerlas idénticas en todas las implementaciones evita que una aplicación cambie de apariencia según el backend que utilice.
+Integración:
 
-## Implementaciones incluidas
+```html
+<link rel="stylesheet" href="https://TU_HOST/eyex.css">
+```
 
-El repositorio contiene la misma API escrita de forma independiente en cuatro backends:
+Luego selecciona el tema en el elemento raíz:
+
+```html
+<html data-eyex-theme="deuteranopia" data-eyex-mode="dark">
+```
+
+Para alto contraste:
+
+```html
+<html
+  data-eyex-theme="deuteranopia"
+  data-eyex-mode="dark"
+  data-eyex-high-contrast="true">
+```
+
+El CSS estático usa paletas predefinidas y no realiza solicitudes HTTP.
+
+## Widget embebible
+
+EyeX también sirve:
+
+```text
+/eyex.js
+```
+
+Cuando el widget y la API están publicados en el mismo host, basta una línea:
+
+```html
+<script src="https://TU_HOST/eyex.js"></script>
+```
+
+El script agrega un botón flotante con selector de tipo, intensidad, tema y alto contraste. Por defecto toma como API el mismo origen desde el que se descargó `eyex.js`.
+
+Si la API está en otro host:
+
+```html
+<script
+  src="https://TU_CDN/eyex.js"
+  data-eyex-api="https://api.ejemplo.com"></script>
+```
+
+También expone:
+
+```javascript
+await window.EyeX.apply('protanopia', {
+  severity: 'moderate',
+  mode: 'dark',
+  highContrast: true
+});
+```
+
+## Extensión de navegador
+
+La extensión se encuentra en:
+
+```text
+extension/browser
+```
+
+Para probarla en Chrome o Edge:
+
+1. Abre la página de extensiones del navegador.
+2. Activa el modo de desarrollador.
+3. Selecciona **Cargar descomprimida**.
+4. Selecciona la carpeta `extension/browser`.
+5. Abre EyeX desde el icono de extensiones y activa el modo deseado.
+
+El mismo código evita dependencias del backend y guarda la preferencia mediante `storage.sync`.
+
+Para probarla temporalmente en Firefox, abre `about:debugging`, entra en **Este Firefox**, selecciona **Cargar complemento temporal** y elige `extension/browser/manifest.json`.
+
+## SDK para React
+
+Ubicación:
+
+```text
+sdk/react
+```
+
+Ejemplo:
+
+```tsx
+import { EyeXClient, useEyeXTheme } from '@eyex/react';
+
+const client = new EyeXClient('https://api.ejemplo.com');
+
+function AccessibilityTheme() {
+  const { type, setType, theme } = useEyeXTheme(client, 'normal', {
+    severity: 'moderate',
+    mode: 'dark'
+  });
+
+  return (
+    <select value={type} onChange={e => setType(e.target.value as typeof type)}>
+      <option value="normal">Normal</option>
+      <option value="deuteranopia">Deuteranopia</option>
+    </select>
+  );
+}
+```
+
+El cliente React incluye `types()`, `theme()`, `custom()` y `suggest()`. El hook aplica automáticamente la paleta como variables CSS globales.
+
+## SDK para React Native
+
+Ubicación:
+
+```text
+sdk/react-native
+```
+
+El cliente incluye `types()`, `theme()`, `custom()` y `suggest()`, y devuelve la paleta para aplicarla mediante `StyleSheet` o el sistema de temas de la aplicación:
+
+```typescript
+const client = new EyeXClient('https://api.ejemplo.com');
+const theme = await client.theme('tritanopia', {
+  severity: 'moderate',
+  mode: 'dark'
+});
+```
+
+## SDK para Flutter
+
+Ubicación:
+
+```text
+sdk/flutter
+```
+
+Ejemplo:
+
+```dart
+final client = EyeXClient('https://api.ejemplo.com');
+final theme = await client.theme(
+  'protanopia',
+  severity: 'moderate',
+  mode: 'dark',
+);
+```
+
+El cliente Flutter incluye `types()`, `theme()`, `custom()` y `suggest()`. La aplicación puede convertir los valores `#RRGGBB` recibidos a objetos `Color` y construir su `ThemeData`.
+
+## Implementaciones backend
 
 | Implementación | Ubicación | Tecnología |
 | --- | --- | --- |
 | Go | raíz del proyecto | `net/http` |
-| PHP | `implementations/php` | PHP 8, rutas ligeras sin framework |
+| PHP | `implementations/php` | PHP 8 sin framework |
 | TypeScript | `implementations/typescript-node` | Node.js + Fastify |
-| Java | `implementations/java` | Java 21 + Spring Boot |
+| Java | `implementations/java` | Spring Boot |
 
-También incluye dos clientes:
+Las cuatro implementaciones mantienen los mismos tipos, parámetros, endpoints, reglas de contraste y estructura JSON.
+
+## Clientes web
 
 | Cliente | Ubicación | Uso |
 | --- | --- | --- |
-| HTML + JavaScript | `frontend/html-js` | Página principal servida por el backend Go |
-| Vue | `frontend/vue` | Ejemplo alternativo con Vue 3 y composable propio |
+| HTML + JavaScript | `frontend/html-js` | Web principal servida por Go |
+| Vue | `frontend/vue` | Cliente alternativo con Vue y composable |
 
-Todos los backends deben conservar exactamente los mismos dos endpoints, tipos, nombres de campos y paletas.
+## Ejecutar Go sin Docker
 
-## Ejecutar la versión Go sin Docker
-
-Requisitos: Go 1.23 o superior.
+Requisito: Go 1.23 o superior.
 
 ```bash
 go test ./...
 go run ./cmd/api
 ```
 
-Abre `http://localhost:8080`.
-
-## Ejecutar la versión PHP
-
-Requisito: PHP 8.2 o superior.
+## Ejecutar PHP
 
 ```bash
 cd implementations/php
 php -S 127.0.0.1:8080 public/index.php
 ```
 
-Prueba:
-
-```bash
-curl http://localhost:8080/api/v1/theme/protanopia
-```
-
-## Ejecutar la versión TypeScript (Node)
-
-Requisitos: Node.js 20 o superior y npm.
+## Ejecutar TypeScript / Node
 
 ```bash
 cd implementations/typescript-node
 npm install
-npm run dev
-```
-
-Para compilar y ejecutar JavaScript generado:
-
-```bash
 npm run build
 npm start
 ```
 
-## Ejecutar la versión Java
-
-Requisitos: Java 21 y Maven.
+## Ejecutar Java
 
 ```bash
 cd implementations/java
 mvn spring-boot:run
 ```
 
-## Ejecutar el cliente Vue
+## Ejecutar Vue
 
-Primero deja uno de los backends escuchando en `http://localhost:8080`.
-
-En otra terminal:
+Primero deja un backend escuchando en `http://localhost:8080`.
 
 ```bash
 cd frontend/vue
@@ -230,67 +434,69 @@ npm install
 npm run dev
 ```
 
-Abre `http://localhost:5173`.
-
-Durante desarrollo, el cliente Vue utiliza `http://localhost:8080` como API. Si necesitas otra dirección, puedes abrir la página agregando el parámetro `api`, por ejemplo:
+Si la API está en otra dirección:
 
 ```text
-http://localhost:5173/?api=http://192.168.1.50:8080
+http://localhost:5173/?api=https://api.ejemplo.com
 ```
 
-No necesita un archivo `.env` propio.
+No necesita otro `.env`.
 
 ## Configuración
 
-El repositorio mantiene **un solo archivo `.env`**, ubicado en la raíz:
+El repositorio mantiene un único archivo `.env` en la raíz:
 
 ```dotenv
 EYEX_PORT=8080
 EYEX_ALLOWED_ORIGIN=*
 ```
 
-No existen `.env.example`, `.env.local`, `.env.production` ni archivos similares.
+No se requieren archivos `.env` adicionales para los SDK, Vue, PHP, Java o Node.
 
-`EYEX_PORT` define el puerto del servicio y `EYEX_ALLOWED_ORIGIN` permite controlar el origen autorizado para solicitudes desde navegador. En producción conviene reemplazar `*` por el dominio real del frontend.
+`EYEX_PORT` define el puerto del servicio Go/Node/PHP cuando corresponde. `EYEX_ALLOWED_ORIGIN` controla CORS. Para una publicación real conviene sustituir `*` por el origen que deba consumir la API cuando frontend y API estén separados.
 
-El contenedor Docker no copia `.env` dentro de la imagen. Si quieres inyectarlo al ejecutar el contenedor:
-
-```bash
-docker run --rm --name eyex --env-file .env -p 8080:8080 eyex:local
-```
-
-## Estructura principal
+## Estructura
 
 ```text
 eyex/
 ├── cmd/api/                       # Arranque del backend Go
-├── internal/                      # API, configuración, middleware y temas Go
+├── internal/                      # Temas, contraste, API y middleware Go
 ├── implementations/
-│   ├── php/                       # Backend PHP
-│   ├── typescript-node/           # Backend Node + Fastify
-│   └── java/                      # Backend Spring Boot
+│   ├── php/
+│   ├── typescript-node/
+│   └── java/
 ├── frontend/
-│   ├── html-js/                   # Web principal sin framework
-│   └── vue/                       # Cliente Vue 3
-├── deploy/
-│   ├── k8s/                       # Deployment, Service e Ingress
-│   └── terraform/                 # Infraestructura GKE de referencia
+│   ├── html-js/                   # Web, eyex.css y eyex.js
+│   └── vue/
+├── extension/browser/             # Extensión Chrome/Firefox
+├── sdk/
+│   ├── react/
+│   ├── react-native/
+│   └── flutter/
+├── deploy/                        # Kubernetes y Terraform de referencia
 ├── .env                           # Único archivo de variables
 ├── Dockerfile
 ├── go.mod
-└── README.md                      # Única documentación Markdown
+└── README.md                      # Único archivo Markdown
 ```
 
-## Despliegue
+## Guardar el proyecto en GitHub
 
-El `Dockerfile` compila el backend Go en una imagen multi-stage y copia la web HTML + JavaScript. Los manifiestos de Kubernetes están en `deploy/k8s` y el ejemplo de infraestructura GKE con Terraform está en `deploy/terraform`.
+Crea un repositorio vacío en GitHub y, desde la carpeta `eyex`, ejecuta:
 
-El flujo recomendado es:
-
-```text
-pruebas -> build -> imagen -> registry -> Kubernetes
+```bash
+git init
+git add .
+git commit -m "Initial EyeX"
+git branch -M main
+git remote add origin https://github.com/TU_USUARIO/eyex.git
+git push -u origin main
 ```
 
-## Alcance
+Si el repositorio ya existe localmente, no repitas `git init`; agrega o corrige el `origin` y realiza el `push`.
 
-EyeX está enfocado en cambiar la **paleta general de una pantalla**. No modifica imágenes, no analiza capturas, no detecta automáticamente el tipo de visión y no garantiza por sí solo el cumplimiento completo de WCAG. Para una aplicación real, el modo de color debe complementarse con etiquetas claras, estados comprensibles y una revisión general de accesibilidad.
+El `Dockerfile` de la raíz es suficiente para conectar el repositorio a un hosting compatible con Docker. La imagen oficial ejecuta el backend Go y sirve también la web principal, `eyex.css`, `eyex.js` y el logo desde el mismo host.
+
+## Alcance de accesibilidad
+
+EyeX ayuda a aplicar un tema visual consistente y valida el contraste principal de texto. No modifica imágenes ni contenido multimedia, no identifica automáticamente una condición visual y no garantiza por sí solo el cumplimiento integral de WCAG. Una aplicación accesible también debe considerar estructura semántica, navegación por teclado, foco, tamaños de texto, estados, formularios, contenido alternativo y pruebas con usuarios.

@@ -11,3 +11,12 @@ frontend/vue/node_modules/
 .DS_Store
 .idea/
 .vscode/
+
+# SDK build outputs
+sdk/react/dist/
+sdk/react/node_modules/
+sdk/react-native/dist/
+sdk/react-native/node_modules/
+.dart_tool/
+sdk/flutter/.dart_tool/
+sdk/flutter/build/
