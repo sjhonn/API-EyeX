@@ -1,0 +1,325 @@
+# This OpenAPI document is the executable public contract for every EyeX HTTP implementation.
+openapi: 3.0.3
+info:
+  title: EyeX API
+  version: current
+  description: >-
+    API de temas de pantalla para daltonismo y baja vision. Devuelve paletas completas
+    listas para aplicar a una interfaz. Los mensajes de error respetan Accept-Language
+    en espanol e ingles. X-API-Key es opcional y, cuando coincide con la clave configurada,
+    evita el limite publico de solicitudes.
+  license:
+    name: MIT
+servers:
+  - url: http://localhost:8080
+    description: Entorno local
+paths:
+  /api/v1/theme/types:
+    get:
+      summary: Lista los tipos de tema disponibles
+      operationId: listThemeTypes
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/ApiKey'
+      responses:
+        '200':
+          description: Tipos disponibles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TypesResponse'
+              example:
+                types: [normal, protanopia, deuteranopia, tritanopia, achromatopsia, low_vision]
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '426': { $ref: '#/components/responses/HttpsRequired' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '504': { $ref: '#/components/responses/Timeout' }
+  /api/v1/theme/{type}:
+    get:
+      summary: Obtiene una paleta completa de tema
+      operationId: getTheme
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/ThemeType'
+        - name: severity
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [mild, moderate, severe]
+          description: Intensidad de la adaptacion. Si se omite, el contrato base conserva su comportamiento original.
+        - name: mode
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [dark, light]
+          description: Variante oscura o clara.
+        - name: high_contrast
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Refuerza el contraste manteniendo el tipo seleccionado.
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/IfNoneMatch'
+        - $ref: '#/components/parameters/ApiKey'
+      responses:
+        '200':
+          description: Tema calculado
+          headers:
+            ETag:
+              description: Identificador del cuerpo para revalidacion HTTP.
+              schema: { type: string }
+            Cache-Control:
+              description: Politica de cache del tema.
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThemeResponse'
+        '304':
+          description: El tema no cambio respecto del ETag enviado.
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '426': { $ref: '#/components/responses/HttpsRequired' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '504': { $ref: '#/components/responses/Timeout' }
+  /api/v1/theme/custom:
+    post:
+      summary: Adapta una paleta de marca
+      operationId: createCustomTheme
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/ApiKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomThemeRequest'
+      responses:
+        '200':
+          description: Paleta de marca adaptada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThemeResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '426': { $ref: '#/components/responses/HttpsRequired' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '504': { $ref: '#/components/responses/Timeout' }
+  /api/v1/test/suggest:
+    post:
+      summary: Sugiere de forma orientativa un tipo de tema
+      description: El resultado es una guia y no constituye un diagnostico medico.
+      operationId: suggestThemeType
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/ApiKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuickTestRequest'
+      responses:
+        '200':
+          description: Sugerencia orientativa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuickTestResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '426': { $ref: '#/components/responses/HttpsRequired' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '504': { $ref: '#/components/responses/Timeout' }
+  /metrics:
+    get:
+      summary: Expone metricas en formato Prometheus
+      operationId: getMetrics
+      responses:
+        '200':
+          description: Metricas de solicitudes, errores, tipos y latencia p95.
+          content:
+            text/plain:
+              schema: { type: string }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /eyex.css:
+    get:
+      summary: Entrega el plugin CSS estatico
+      operationId: getEyeXCss
+      responses:
+        '200':
+          description: Hoja de estilos con paletas predefinidas.
+          content:
+            text/css:
+              schema: { type: string }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /eyex.js:
+    get:
+      summary: Entrega el widget embebible
+      operationId: getEyeXWidget
+      responses:
+        '200':
+          description: JavaScript del boton flotante EyeX.
+          content:
+            application/javascript:
+              schema: { type: string }
+        '404': { $ref: '#/components/responses/NotFound' }
+components:
+  parameters:
+    AcceptLanguage:
+      name: Accept-Language
+      in: header
+      required: false
+      description: Idioma de los mensajes de error. Se admiten es y en; espanol es el valor predeterminado.
+      schema:
+        type: string
+        example: es
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      description: ETag recibido en una consulta anterior del mismo tema.
+      schema: { type: string }
+    ApiKey:
+      name: X-API-Key
+      in: header
+      required: false
+      description: Clave opcional configurada por el operador para omitir el limite publico de solicitudes.
+      schema: { type: string }
+  schemas:
+    ThemeType:
+      type: string
+      enum: [normal, protanopia, deuteranopia, tritanopia, achromatopsia, low_vision]
+    HexColor:
+      type: string
+      pattern: '^#[0-9A-Fa-f]{6}$'
+      example: '#1E1E1E'
+    Palette:
+      type: object
+      additionalProperties: false
+      required: [background, surface, text, primary, secondary, error, success]
+      properties:
+        background: { $ref: '#/components/schemas/HexColor' }
+        surface: { $ref: '#/components/schemas/HexColor' }
+        text: { $ref: '#/components/schemas/HexColor' }
+        primary: { $ref: '#/components/schemas/HexColor' }
+        secondary: { $ref: '#/components/schemas/HexColor' }
+        error: { $ref: '#/components/schemas/HexColor' }
+        success: { $ref: '#/components/schemas/HexColor' }
+    ThemeResponse:
+      type: object
+      additionalProperties: false
+      required: [type, palette, contrast_ok]
+      properties:
+        type: { $ref: '#/components/schemas/ThemeType' }
+        palette: { $ref: '#/components/schemas/Palette' }
+        contrast_ok:
+          type: boolean
+          description: true cuando text alcanza al menos 4.5:1 contra background y surface.
+    TypesResponse:
+      type: object
+      additionalProperties: false
+      required: [types]
+      properties:
+        types:
+          type: array
+          items: { $ref: '#/components/schemas/ThemeType' }
+    CustomThemeRequest:
+      type: object
+      additionalProperties: false
+      required: [type, palette]
+      properties:
+        type: { $ref: '#/components/schemas/ThemeType' }
+        severity:
+          type: string
+          enum: [mild, moderate, severe]
+        mode:
+          type: string
+          enum: [dark, light]
+        high_contrast:
+          type: boolean
+          default: false
+        palette: { $ref: '#/components/schemas/Palette' }
+    QuickTestAnswers:
+      type: object
+      additionalProperties: false
+      required: [reds_look_darker, green_brown_confusion, blue_yellow_confusion, colors_look_gray]
+      properties:
+        reds_look_darker: { type: boolean }
+        green_brown_confusion: { type: boolean }
+        blue_yellow_confusion: { type: boolean }
+        colors_look_gray: { type: boolean }
+    QuickTestRequest:
+      type: object
+      additionalProperties: false
+      required: [answers]
+      properties:
+        answers: { $ref: '#/components/schemas/QuickTestAnswers' }
+    QuickTestResponse:
+      type: object
+      additionalProperties: false
+      required: [suggested_type, disclaimer]
+      properties:
+        suggested_type: { $ref: '#/components/schemas/ThemeType' }
+        disclaimer: { type: string }
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          enum: [invalid_type, invalid_parameter, invalid_request, invalid_palette, not_found, method_not_allowed, rate_limited, timeout, internal_server_error, https_required]
+        message: { type: string }
+  responses:
+    BadRequest:
+      description: Solicitud invalida.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: Recurso no encontrado.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    MethodNotAllowed:
+      description: Metodo no permitido.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    HttpsRequired:
+      description: HTTPS es obligatorio cuando el servicio esta en produccion.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    RateLimited:
+      description: Limite publico de solicitudes excedido.
+      headers:
+        Retry-After:
+          schema: { type: integer }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Timeout:
+      description: Tiempo de ejecucion excedido.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    InternalError:
+      description: Error interno sin stack trace.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
