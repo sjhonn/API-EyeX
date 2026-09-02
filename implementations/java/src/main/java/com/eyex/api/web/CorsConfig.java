@@ -15,6 +15,6 @@ public class CorsConfig implements WebMvcConfigurer {
         registry.addMapping("/api/**")
                 .allowedOrigins(allowedOrigin)
                 .allowedMethods("GET", "POST", "OPTIONS")
-                .allowedHeaders("Content-Type", "Accept");
+                .allowedHeaders("Content-Type", "Accept", "Accept-Language", "If-None-Match", "X-API-Key");
     }
 }

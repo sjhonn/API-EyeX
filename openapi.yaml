@@ -1,13 +1,15 @@
-# This OpenAPI document is the executable public contract for every EyeX HTTP implementation.
+# Public EyeX v1 contract. Core API schemas are kept in parity across Go, PHP, TypeScript/Node and Java.
 openapi: 3.0.3
 info:
   title: EyeX API
-  version: current
+  version: 1.2.0
   description: >-
     API de temas de pantalla para daltonismo y baja vision. Devuelve paletas completas
-    listas para aplicar a una interfaz. Los mensajes de error respetan Accept-Language
-    en espanol e ingles. X-API-Key es opcional y, cuando coincide con la clave configurada,
-    evita el limite publico de solicitudes.
+    listas para aplicar a una interfaz e incluye simulacion de vision de color con severidad
+    continua mediante el modelo Machado, Oliveira & Fernandes (2009). Los endpoints v1 y
+    sus payloads principales mantienen paridad entre Go, PHP, TypeScript/Node y Java. El
+    servidor Go oficial agrega mensajes de error segun Accept-Language, X-API-Key opcional,
+    rate limiting, HTTPS obligatorio en produccion, timeout y metricas Prometheus.
   license:
     name: MIT
 servers:
@@ -143,6 +145,86 @@ paths:
         '429': { $ref: '#/components/responses/RateLimited' }
         '500': { $ref: '#/components/responses/InternalError' }
         '504': { $ref: '#/components/responses/Timeout' }
+  /api/v1/simulate:
+    post:
+      summary: Simula la percepcion de un color para una deficiencia de vision cromatica
+      description: >-
+        Aplica las matrices de Machado, Oliveira & Fernandes (2009) en RGB lineal. La severidad
+        es continua entre 0 y 1; se interpolan linealmente las matrices tabuladas cada 0.1.
+      operationId: simulateColor
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/ApiKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimulateRequest'
+            example:
+              hex: '#FF0000'
+              type: protanopia
+              severity: 0.65
+      responses:
+        '200':
+          description: Color simulado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulateResponse'
+              example:
+                original: '#FF0000'
+                simulated: '#A05A00'
+                type: protanopia
+                severity: 0.65
+                model: machado-2009
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '426': { $ref: '#/components/responses/HttpsRequired' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '504': { $ref: '#/components/responses/Timeout' }
+  /api/v1/simulate/batch:
+    post:
+      summary: Simula varios colores con el mismo tipo y severidad
+      operationId: simulateColorBatch
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+        - $ref: '#/components/parameters/ApiKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimulateBatchRequest'
+            example:
+              colors: ['#FF0000', '#00FF00', '#0000FF']
+              type: deuteranopia
+              severity: 0.5
+      responses:
+        '200':
+          description: Colores simulados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulateBatchResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '405': { $ref: '#/components/responses/MethodNotAllowed' }
+        '426': { $ref: '#/components/responses/HttpsRequired' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '504': { $ref: '#/components/responses/Timeout' }
+  /openapi.yaml:
+    get:
+      summary: Entrega este contrato OpenAPI
+      operationId: getOpenApiDocument
+      responses:
+        '200':
+          description: Documento OpenAPI 3.0.3.
+          content:
+            application/yaml:
+              schema: { type: string }
+        '404': { $ref: '#/components/responses/NotFound' }
   /metrics:
     get:
       summary: Expone metricas en formato Prometheus
@@ -275,6 +357,69 @@ components:
       properties:
         suggested_type: { $ref: '#/components/schemas/ThemeType' }
         disclaimer: { type: string }
+    SimulationType:
+      type: string
+      enum: [protanopia, deuteranopia, tritanopia]
+      description: Familia de deficiencia cromatica usada por las matrices de Machado.
+    SimulationSeverity:
+      type: number
+      format: double
+      minimum: 0
+      maximum: 1
+      default: 1
+      description: 0 conserva el color original y 1 aplica la simulacion completa.
+    SimulateRequest:
+      type: object
+      additionalProperties: false
+      required: [hex, type]
+      properties:
+        hex: { $ref: '#/components/schemas/HexColor' }
+        type: { $ref: '#/components/schemas/SimulationType' }
+        severity: { $ref: '#/components/schemas/SimulationSeverity' }
+    SimulateResponse:
+      type: object
+      additionalProperties: false
+      required: [original, simulated, type, severity, model]
+      properties:
+        original: { $ref: '#/components/schemas/HexColor' }
+        simulated: { $ref: '#/components/schemas/HexColor' }
+        type: { $ref: '#/components/schemas/SimulationType' }
+        severity: { $ref: '#/components/schemas/SimulationSeverity' }
+        model:
+          type: string
+          enum: [machado-2009]
+    SimulatedColor:
+      type: object
+      additionalProperties: false
+      required: [original, simulated]
+      properties:
+        original: { $ref: '#/components/schemas/HexColor' }
+        simulated: { $ref: '#/components/schemas/HexColor' }
+    SimulateBatchRequest:
+      type: object
+      additionalProperties: false
+      required: [colors, type]
+      properties:
+        colors:
+          type: array
+          minItems: 1
+          maxItems: 256
+          items: { $ref: '#/components/schemas/HexColor' }
+        type: { $ref: '#/components/schemas/SimulationType' }
+        severity: { $ref: '#/components/schemas/SimulationSeverity' }
+    SimulateBatchResponse:
+      type: object
+      additionalProperties: false
+      required: [type, severity, model, results]
+      properties:
+        type: { $ref: '#/components/schemas/SimulationType' }
+        severity: { $ref: '#/components/schemas/SimulationSeverity' }
+        model:
+          type: string
+          enum: [machado-2009]
+        results:
+          type: array
+          items: { $ref: '#/components/schemas/SimulatedColor' }
     ErrorResponse:
       type: object
       additionalProperties: false
@@ -282,7 +427,7 @@ components:
       properties:
         error:
           type: string
-          enum: [invalid_type, invalid_parameter, invalid_request, invalid_palette, not_found, method_not_allowed, rate_limited, timeout, internal_server_error, https_required]
+          enum: [invalid_type, invalid_parameter, invalid_request, invalid_palette, invalid_color, not_found, method_not_allowed, rate_limited, timeout, internal_server_error, https_required]
         message: { type: string }
   responses:
     BadRequest:

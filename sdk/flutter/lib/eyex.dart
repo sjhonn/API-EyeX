@@ -22,6 +22,21 @@ class EyeXTestResult {
   const EyeXTestResult(this.suggestedType,this.disclaimer);
   factory EyeXTestResult.fromJson(Map<String,dynamic> j)=>EyeXTestResult(j['suggested_type'],j['disclaimer']);
 }
+class EyeXSimulation {
+  final String original, simulated, type, model; final double severity;
+  const EyeXSimulation({required this.original,required this.simulated,required this.type,required this.severity,required this.model});
+  factory EyeXSimulation.fromJson(Map<String,dynamic> j)=>EyeXSimulation(original:j['original'],simulated:j['simulated'],type:j['type'],severity:(j['severity'] as num).toDouble(),model:j['model']);
+}
+class EyeXSimulatedColor {
+  final String original, simulated;
+  const EyeXSimulatedColor({required this.original,required this.simulated});
+  factory EyeXSimulatedColor.fromJson(Map<String,dynamic> j)=>EyeXSimulatedColor(original:j['original'],simulated:j['simulated']);
+}
+class EyeXBatchSimulation {
+  final String type, model; final double severity; final List<EyeXSimulatedColor> results;
+  const EyeXBatchSimulation({required this.type,required this.severity,required this.model,required this.results});
+  factory EyeXBatchSimulation.fromJson(Map<String,dynamic> j)=>EyeXBatchSimulation(type:j['type'],severity:(j['severity'] as num).toDouble(),model:j['model'],results:(j['results'] as List).map((e)=>EyeXSimulatedColor.fromJson(e as Map<String,dynamic>)).toList());
+}
 class EyeXClient {
   final String baseUrl;
   const EyeXClient(this.baseUrl);
@@ -42,6 +57,14 @@ class EyeXClient {
   Future<EyeXTheme> custom(String type,EyeXPalette palette,{String? severity,String? mode,bool? highContrast}) async {
     final body=<String,dynamic>{'type':type,'palette':palette.toJson(),if(severity!=null)'severity':severity,if(mode!=null)'mode':mode,if(highContrast!=null)'high_contrast':highContrast};
     return EyeXTheme.fromJson(await _json(Uri.parse('$_base/api/v1/theme/custom'),method:'POST',body:body));
+  }
+  Future<EyeXSimulation> simulate(String hex,String type,{double severity=1.0}) async {
+    final data=await _json(Uri.parse('$_base/api/v1/simulate'),method:'POST',body:{'hex':hex,'type':type,'severity':severity});
+    return EyeXSimulation.fromJson(data);
+  }
+  Future<EyeXBatchSimulation> simulateBatch(List<String> colors,String type,{double severity=1.0}) async {
+    final data=await _json(Uri.parse('$_base/api/v1/simulate/batch'),method:'POST',body:{'colors':colors,'type':type,'severity':severity});
+    return EyeXBatchSimulation.fromJson(data);
   }
   Future<EyeXTestResult> suggest(EyeXTestAnswers answers) async {
     final data=await _json(Uri.parse('$_base/api/v1/test/suggest'),method:'POST',body:{'answers':answers.toJson()});

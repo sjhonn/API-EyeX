@@ -168,11 +168,137 @@ func TestInvalidTypeContract(t *testing.T) {
 	}
 }
 
-func TestLegacyEndpointRemoved(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/simulate", nil)
+func TestSimulateMachadoEndpoint(t *testing.T) {
+	body := []byte(`{"hex":"#ff0000","type":"protanopia","severity":0.65}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/simulate", bytes.NewReader(body))
 	res := httptest.NewRecorder()
 	New("").Routes().ServeHTTP(res, req)
-	if res.Code != http.StatusNotFound {
-		t.Fatalf("expected 404, got %d", res.Code)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	var payload models.SimulateResponse
+	if err := json.Unmarshal(res.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.Original != "#FF0000" || payload.Simulated != "#A05A00" || payload.Model != "machado-2009" {
+		t.Fatalf("unexpected simulation: %#v", payload)
+	}
+	if payload.Type != "protanopia" || payload.Severity != 0.65 {
+		t.Fatalf("unexpected metadata: %#v", payload)
+	}
+}
+
+func TestSimulateDefaultsToFullSeverity(t *testing.T) {
+	body := []byte(`{"hex":"#FF0000","type":"protanopia"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/simulate", bytes.NewReader(body))
+	res := httptest.NewRecorder()
+	New("").Routes().ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	var payload models.SimulateResponse
+	_ = json.Unmarshal(res.Body.Bytes(), &payload)
+	if payload.Severity != 1 || payload.Simulated != "#6D5F00" {
+		t.Fatalf("unexpected default simulation: %#v", payload)
+	}
+}
+
+func TestSimulateBatch(t *testing.T) {
+	body := []byte(`{"colors":["#FF0000","#00ff00","#0000FF"],"type":"deuteranopia","severity":0.5}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/simulate/batch", bytes.NewReader(body))
+	res := httptest.NewRecorder()
+	New("").Routes().ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", res.Code, res.Body.String())
+	}
+	var payload models.SimulateBatchResponse
+	if err := json.Unmarshal(res.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if len(payload.Results) != 3 || payload.Results[1].Original != "#00FF00" {
+		t.Fatalf("unexpected batch response: %#v", payload)
+	}
+}
+
+func TestSimulateRejectsInvalidSeverity(t *testing.T) {
+	body := []byte(`{"hex":"#336699","type":"tritanopia","severity":1.01}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/simulate", bytes.NewReader(body))
+	res := httptest.NewRecorder()
+	New("").Routes().ServeHTTP(res, req)
+	if res.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", res.Code, res.Body.String())
+	}
+	var payload models.ErrorResponse
+	_ = json.Unmarshal(res.Body.Bytes(), &payload)
+	if payload.Error != "invalid_parameter" {
+		t.Fatalf("unexpected error: %#v", payload)
+	}
+}
+
+func TestSimulateRejectsInvalidColor(t *testing.T) {
+	body := []byte(`{"hex":"336699","type":"tritanopia","severity":0.4}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/simulate", bytes.NewReader(body))
+	res := httptest.NewRecorder()
+	New("").Routes().ServeHTTP(res, req)
+	if res.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", res.Code, res.Body.String())
+	}
+	var payload models.ErrorResponse
+	_ = json.Unmarshal(res.Body.Bytes(), &payload)
+	if payload.Error != "invalid_color" {
+		t.Fatalf("unexpected error: %#v", payload)
+	}
+}
+
+func TestThemeETagAndNotModified(t *testing.T) {
+	h := New("").Routes()
+	firstReq := httptest.NewRequest(http.MethodGet, "/api/v1/theme/deuteranopia", nil)
+	first := httptest.NewRecorder()
+	h.ServeHTTP(first, firstReq)
+	etag := first.Header().Get("ETag")
+	if first.Code != http.StatusOK || etag == "" || first.Header().Get("Cache-Control") == "" {
+		t.Fatalf("missing cache headers: status=%d etag=%q cache=%q", first.Code, etag, first.Header().Get("Cache-Control"))
+	}
+	secondReq := httptest.NewRequest(http.MethodGet, "/api/v1/theme/deuteranopia", nil)
+	secondReq.Header.Set("If-None-Match", etag)
+	second := httptest.NewRecorder()
+	h.ServeHTTP(second, secondReq)
+	if second.Code != http.StatusNotModified || second.Body.Len() != 0 {
+		t.Fatalf("expected 304 without body, got %d %q", second.Code, second.Body.String())
+	}
+}
+
+func TestRoutingErrorsAreJSON(t *testing.T) {
+	h := New("").Routes()
+	for _, tc := range []struct {
+		method string
+		path   string
+		code   int
+		error  string
+	}{
+		{http.MethodGet, "/api/v1/no-existe", http.StatusNotFound, "not_found"},
+		{http.MethodDelete, "/api/v1/theme/types", http.StatusMethodNotAllowed, "method_not_allowed"},
+	} {
+		res := httptest.NewRecorder()
+		h.ServeHTTP(res, httptest.NewRequest(tc.method, tc.path, nil))
+		var payload models.ErrorResponse
+		if err := json.Unmarshal(res.Body.Bytes(), &payload); err != nil {
+			t.Fatalf("expected JSON for %s %s: %v / %s", tc.method, tc.path, err, res.Body.String())
+		}
+		if res.Code != tc.code || payload.Error != tc.error {
+			t.Fatalf("unexpected routing error: status=%d payload=%#v", res.Code, payload)
+		}
+	}
+}
+
+func TestEnglishErrorMessage(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/theme/no-existe", nil)
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+	res := httptest.NewRecorder()
+	New("").Routes().ServeHTTP(res, req)
+	var payload models.ErrorResponse
+	_ = json.Unmarshal(res.Body.Bytes(), &payload)
+	if payload.Message != "Unsupported color vision type" {
+		t.Fatalf("unexpected translation: %#v", payload)
 	}
 }

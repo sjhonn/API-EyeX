@@ -14,6 +14,7 @@
       <a class="brand" href="/" aria-label="EyeX inicio">EyeX <span>API</span></a>
       <nav class="nav" aria-label="Navegación principal">
         <a href="#demo">Demo</a>
+        <a href="#simulate">Simulación</a>
         <a href="#custom">Marca</a>
         <a href="#docs">API</a>
         <a href="#test">Test orientativo</a>
@@ -77,6 +78,27 @@
       </div>
     </section>
 
+    <section id="simulate" class="section section-alt">
+      <div class="container">
+        <h2>Simulación de visión cromática</h2>
+        <p class="section-copy">Simula un color con las matrices de Machado, Oliveira &amp; Fernandes (2009). La severidad es continua entre 0 y 1.</p>
+        <div class="simulation-grid">
+          <form id="simulation-form" class="simulation-form">
+            <label class="field"><span>Color</span><input id="simulation-color" type="color" value="#FF0000"></label>
+            <label class="field"><span>HEX</span><input id="simulation-hex" value="#FF0000" maxlength="7" spellcheck="false"></label>
+            <label class="field"><span>Tipo</span><select id="simulation-type"><option value="protanopia">Protanopia</option><option value="deuteranopia">Deuteranopia</option><option value="tritanopia">Tritanopia</option></select></label>
+            <label class="field"><span>Severidad: <strong id="simulation-severity-value">1.00</strong></span><input id="simulation-severity" type="range" min="0" max="1" step="0.05" value="1"></label>
+            <button class="button primary" type="submit">Simular color</button>
+          </form>
+          <div class="simulation-result" aria-live="polite">
+            <div class="simulation-swatch" id="simulation-original"><span>Original <strong id="simulation-original-value">#FF0000</strong></span></div>
+            <div class="simulation-swatch" id="simulation-output"><span>Simulado <strong id="simulation-output-value">—</strong></span></div>
+            <p id="simulation-status" class="status">Listo para simular.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section id="custom" class="section section-alt">
       <div class="container">
         <h2>Adaptar una paleta de marca</h2>
@@ -116,6 +138,16 @@
             <div class="method-line"><span class="method post">POST</span><code>/api/v1/test/suggest</code></div>
             <p>Devuelve una sugerencia orientativa a partir de cuatro preguntas. No es un diagnóstico médico.</p>
             <pre><code>{"suggested_type":"tritanopia","disclaimer":"Resultado orientativo. No es un diagnóstico médico."}</code></pre>
+          </article>
+          <article class="doc-card">
+            <div class="method-line"><span class="method post">POST</span><code>/api/v1/simulate</code></div>
+            <p>Simula un color con severidad continua de 0 a 1 mediante el modelo <code>machado-2009</code>.</p>
+            <pre><code>{"hex":"#FF0000","type":"protanopia","severity":0.65}</code></pre>
+          </article>
+          <article class="doc-card">
+            <div class="method-line"><span class="method post">POST</span><code>/api/v1/simulate/batch</code></div>
+            <p>Simula de 1 a 256 colores usando el mismo tipo y severidad.</p>
+            <pre><code>{"colors":["#FF0000","#00FF00"],"type":"deuteranopia","severity":0.5}</code></pre>
           </article>
         </div>
       </div>

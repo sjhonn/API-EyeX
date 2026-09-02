@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "EyeX",
   "description": "Aplica una paleta EyeX sobre la página actual.",
-  "version": "0.0.0",
+  "version": "1.2.0",
   "permissions": [
     "storage"
   ],

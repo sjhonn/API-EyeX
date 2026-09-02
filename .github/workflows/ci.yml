@@ -18,7 +18,12 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.23.x"
-      - run: go test ./...
+      - name: Test with coverage
+        run: |
+          go test ./... -coverprofile=coverage.out
+          go tool cover -func=coverage.out
+          total="$(go tool cover -func=coverage.out | awk '/total:/ {gsub("%", "", $3); print $3}')"
+          awk -v total="$total" 'BEGIN { if (total + 0 < 50) { printf("Go coverage %.1f%% is below 50%%\n", total); exit 1 } }'
       - run: go vet ./...
 
   php:
@@ -29,6 +34,7 @@ jobs:
         with:
           php-version: "8.4"
       - run: php -l implementations/php/public/index.php
+      - run: php -l implementations/php/simulation.php
 
   typescript:
     runs-on: ubuntu-latest
@@ -57,11 +63,46 @@ jobs:
           cache: maven
       - run: mvn -B test
 
+  openapi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Lint OpenAPI
+        run: npx --yes @redocly/cli@1.34.5 lint openapi.yaml
+      - name: Preserve v1 contract paths
+        run: |
+          for path in \
+            '/api/v1/theme/types:' \
+            '/api/v1/theme/{type}:' \
+            '/api/v1/theme/custom:' \
+            '/api/v1/test/suggest:' \
+            '/api/v1/simulate:' \
+            '/api/v1/simulate/batch:'
+          do
+            grep -Fq "$path" openapi.yaml || { echo "Missing OpenAPI path: $path"; exit 1; }
+          done
+
   vue:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: frontend/vue
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install
+      - run: npm run build
+
+  legacy-web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -96,6 +137,19 @@ jobs:
       - run: npm install
       - run: npm run build
 
+  sdk-ts:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk-ts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install
+      - run: npm run build
+
   sdk-flutter:
     runs-on: ubuntu-latest
     defaults:
@@ -119,9 +173,54 @@ jobs:
       - run: node --check extension/browser/content.js
       - run: node --check extension/browser/popup.js
 
+  parity:
+    runs-on: ubuntu-latest
+    needs: [go, php, typescript, java, openapi]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.x"
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Build TypeScript backend
+        run: |
+          npm --prefix implementations/typescript-node install
+          npm --prefix implementations/typescript-node run build
+      - name: Build Java backend
+        run: mvn -B -f implementations/java/pom.xml -DskipTests package
+      - name: Start four backends
+        run: |
+          mkdir -p parity-logs
+          EYEX_PORT=18080 EYEX_RATE_LIMIT_PER_MINUTE=10000 go run ./cmd/api >parity-logs/go.log 2>&1 &
+          echo $! > parity-logs/go.pid
+          php -S 127.0.0.1:18081 implementations/php/public/index.php >parity-logs/php.log 2>&1 &
+          echo $! > parity-logs/php.pid
+          (cd implementations/typescript-node && EYEX_PORT=18082 npm start) >parity-logs/typescript.log 2>&1 &
+          echo $! > parity-logs/typescript.pid
+          (cd implementations/java && EYEX_PORT=18083 java -jar target/eyex-api-java-1.2.0.jar) >parity-logs/java.log 2>&1 &
+          echo $! > parity-logs/java.pid
+      - name: Verify HTTP parity
+        run: python3 tests/parity.py
+      - name: Upload parity logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eyex-parity-logs
+          path: parity-logs/*.log
+
   image:
     if: github.event_name != 'pull_request'
-    needs: [go, php, typescript, java, vue, sdk-react, sdk-react-native, sdk-flutter, static-assets]
+    needs: [go, php, typescript, java, openapi, vue, legacy-web, sdk-react, sdk-react-native, sdk-ts, sdk-flutter, static-assets, parity]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import { MACHADO_MODEL, isSimulationType, normalizeSimulationHex, normalizeSimulationSeverity, simulateMachadoHex } from './simulation.js';
 
 type ThemeType = 'normal' | 'protanopia' | 'deuteranopia' | 'tritanopia' | 'achromatopsia' | 'low_vision';
 type Severity = 'mild' | 'moderate' | 'severe';
@@ -102,6 +103,10 @@ function isThemeType(value: string): value is ThemeType { return supportedTypes.
 function isSeverity(value: string): value is Severity { return ['mild', 'moderate', 'severe'].includes(value); }
 function isMode(value: string): value is Mode { return value === 'dark' || value === 'light'; }
 function validHex(value: string): boolean { return /^#[0-9A-Fa-f]{6}$/.test(value); }
+function hasOnlyKeys(value: unknown, allowed: readonly string[]): boolean {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  return Object.keys(value).every((key) => allowed.includes(key));
+}
 
 function parseHex(value: string): [number, number, number] {
   const raw = value.replace('#', '');
@@ -215,7 +220,14 @@ function customTheme(body: CustomThemeRequest): ThemeResponse | ErrorResponse {
 }
 
 const app = Fastify({ logger: true });
-await app.register(cors, { origin: process.env.EYEX_ALLOWED_ORIGIN || '*', methods: ['GET', 'POST', 'OPTIONS'] });
+await app.register(cors, { origin: process.env.EYEX_ALLOWED_ORIGIN || '*', methods: ['GET', 'POST', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Accept', 'Accept-Language', 'If-None-Match', 'X-API-Key'] });
+
+app.setErrorHandler((error, _request, reply) => {
+  if (error.statusCode === 400) return reply.code(400).send({ error: 'invalid_request', message: 'JSON de entrada inválido' });
+  app.log.error(error);
+  return reply.code(500).send({ error: 'internal_server_error', message: 'Error interno del servidor' });
+});
+app.setNotFoundHandler((_request, reply) => reply.code(404).send({ error: 'not_found', message: 'Recurso no encontrado' }));
 
 app.get<{ Reply: TypesResponse }>('/api/v1/theme/types', async () => ({ types: [...supportedTypes] }));
 
@@ -230,6 +242,34 @@ app.get<{ Params: { type: string }; Querystring: { severity?: string; mode?: str
     return result;
   },
 );
+
+app.post<{ Body: { hex?: unknown; type?: unknown; severity?: unknown } }>('/api/v1/simulate', async (request, reply) => {
+  const body = request.body || {};
+  if (!hasOnlyKeys(body, ['hex', 'type', 'severity'])) return reply.code(400).send({ error: 'invalid_request', message: 'JSON de entrada inválido' });
+  if (!isSimulationType(body.type)) return reply.code(400).send({ error: 'invalid_type', message: 'Tipo de daltonismo no soportado' });
+  const severity = normalizeSimulationSeverity(body.severity, Object.prototype.hasOwnProperty.call(body, 'severity'));
+  if (severity === null) return reply.code(400).send({ error: 'invalid_parameter', message: 'severity debe estar entre 0 y 1' });
+  const original = normalizeSimulationHex(body.hex);
+  if (original === null) return reply.code(400).send({ error: 'invalid_color', message: 'hex debe usar formato #RRGGBB' });
+  return { original, simulated: simulateMachadoHex(original, body.type, severity), type: body.type, severity, model: MACHADO_MODEL };
+});
+
+app.post<{ Body: { colors?: unknown; type?: unknown; severity?: unknown } }>('/api/v1/simulate/batch', async (request, reply) => {
+  const body = request.body || {};
+  if (!hasOnlyKeys(body, ['colors', 'type', 'severity'])) return reply.code(400).send({ error: 'invalid_request', message: 'JSON de entrada inválido' });
+  if (!Array.isArray(body.colors)) return reply.code(400).send({ error: 'invalid_request', message: 'JSON de entrada inválido' });
+  if (body.colors.length < 1 || body.colors.length > 256) return reply.code(400).send({ error: 'invalid_request', message: 'colors debe contener entre 1 y 256 colores' });
+  if (!isSimulationType(body.type)) return reply.code(400).send({ error: 'invalid_type', message: 'Tipo de daltonismo no soportado' });
+  const severity = normalizeSimulationSeverity(body.severity, Object.prototype.hasOwnProperty.call(body, 'severity'));
+  if (severity === null) return reply.code(400).send({ error: 'invalid_parameter', message: 'severity debe estar entre 0 y 1' });
+  const results: Array<{ original: string; simulated: string }> = [];
+  for (const color of body.colors) {
+    const original = normalizeSimulationHex(color);
+    if (original === null) return reply.code(400).send({ error: 'invalid_color', message: 'cada color debe usar formato #RRGGBB' });
+    results.push({ original, simulated: simulateMachadoHex(original, body.type, severity) });
+  }
+  return { type: body.type, severity, model: MACHADO_MODEL, results };
+});
 
 app.post<{ Body: CustomThemeRequest; Reply: ThemeResponse | ErrorResponse }>('/api/v1/theme/custom', async (request, reply) => {
   const result = customTheme(request.body);

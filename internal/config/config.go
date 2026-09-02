@@ -7,11 +7,16 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Config struct {
-	Address       string
-	AllowedOrigin string
+	Address            string
+	AllowedOrigin      string
+	Environment        string
+	APIKey             string
+	RateLimitPerMinute int
+	RequestTimeout     time.Duration
 }
 
 func Load(path string) (Config, error) {
@@ -19,19 +24,43 @@ func Load(path string) (Config, error) {
 		return Config{}, err
 	}
 
-	port := 8080
-	if raw := strings.TrimSpace(os.Getenv("EYEX_PORT")); raw != "" {
-		value, err := strconv.Atoi(raw)
-		if err != nil || value < 1 || value > 65535 {
-			return Config{}, fmt.Errorf("EYEX_PORT must be an integer between 1 and 65535")
-		}
-		port = value
+	port, err := envInt("EYEX_PORT", 8080, 1, 65535)
+	if err != nil {
+		return Config{}, err
+	}
+	rateLimit, err := envInt("EYEX_RATE_LIMIT_PER_MINUTE", 60, 1, 1_000_000)
+	if err != nil {
+		return Config{}, err
+	}
+	timeoutMS, err := envInt("EYEX_REQUEST_TIMEOUT_MS", 5000, 100, 300_000)
+	if err != nil {
+		return Config{}, err
+	}
+	environment := strings.ToLower(envOr("EYEX_ENV", "development"))
+	if environment != "development" && environment != "production" && environment != "test" {
+		return Config{}, fmt.Errorf("EYEX_ENV must be development, production or test")
 	}
 
 	return Config{
-		Address:       fmt.Sprintf(":%d", port),
-		AllowedOrigin: envOr("EYEX_ALLOWED_ORIGIN", "*"),
+		Address:            fmt.Sprintf(":%d", port),
+		AllowedOrigin:      envOr("EYEX_ALLOWED_ORIGIN", "*"),
+		Environment:        environment,
+		APIKey:             strings.TrimSpace(os.Getenv("EYEX_API_KEY")),
+		RateLimitPerMinute: rateLimit,
+		RequestTimeout:     time.Duration(timeoutMS) * time.Millisecond,
 	}, nil
+}
+
+func envInt(key string, fallback, minValue, maxValue int) (int, error) {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return fallback, nil
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil || value < minValue || value > maxValue {
+		return 0, fmt.Errorf("%s must be an integer between %d and %d", key, minValue, maxValue)
+	}
+	return value, nil
 }
 
 func envOr(key, fallback string) string {

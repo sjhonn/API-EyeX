@@ -20,3 +20,13 @@ sdk/react-native/node_modules/
 .dart_tool/
 sdk/flutter/.dart_tool/
 sdk/flutter/build/
+
+# Additional local dependency/cache outputs
+sdk-ts/node_modules/
+web/node_modules/
+__pycache__/
+*.py[cod]
+
+# Environment / secrets
+.env
+.env

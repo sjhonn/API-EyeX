@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once dirname(__DIR__) . DIRECTORY_SEPARATOR . 'simulation.php';
+
 const SUPPORTED_TYPES = ['normal', 'protanopia', 'deuteranopia', 'tritanopia', 'achromatopsia', 'low_vision'];
 
 const LEGACY_PALETTES = [
@@ -55,6 +57,7 @@ function jsonResponse(int $status, array $payload): never {
 function validType(string $type): bool { return in_array($type, SUPPORTED_TYPES, true); }
 function validSeverity(string $value): bool { return in_array($value, ['mild','moderate','severe'], true); }
 function validMode(string $value): bool { return in_array($value, ['dark','light'], true); }
+function onlyKeys(array $value, array $allowed): bool { foreach(array_keys($value) as $key) if(!in_array($key,$allowed,true)) return false; return true; }
 function parseHex(string $hex): array { $h=ltrim($hex,'#'); return [hexdec(substr($h,0,2)),hexdec(substr($h,2,2)),hexdec(substr($h,4,2))]; }
 function formatHex(float $r,float $g,float $b): string { return sprintf('#%02X%02X%02X', max(0,min(255,(int)round($r))), max(0,min(255,(int)round($g))), max(0,min(255,(int)round($b)))); }
 function mixHex(string $a,string $b,float $f): string { [$ar,$ag,$ab]=parseHex($a);[$br,$bg,$bb]=parseHex($b);return formatHex($ar*(1-$f)+$br*$f,$ag*(1-$f)+$bg*$f,$ab*(1-$f)+$bb*$f); }
@@ -87,11 +90,36 @@ function customTheme(array $body): array {
 }
 
 loadRootEnv();
-header('Access-Control-Allow-Origin: '.(getenv('EYEX_ALLOWED_ORIGIN')?:'*'));header('Access-Control-Allow-Headers: Content-Type');header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Origin: '.(getenv('EYEX_ALLOWED_ORIGIN')?:'*'));header('Access-Control-Allow-Headers: Accept, Accept-Language, Content-Type, If-None-Match, X-API-Key');header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 if(($_SERVER['REQUEST_METHOD']??'GET')==='OPTIONS'){http_response_code(204);exit;}
 $method=$_SERVER['REQUEST_METHOD']??'GET';$path=parse_url($_SERVER['REQUEST_URI']??'/',PHP_URL_PATH)?:'/';
 if($method==='GET'&&$path==='/api/v1/theme/types')jsonResponse(200,['types'=>SUPPORTED_TYPES]);
 if($method==='GET'&&preg_match('#^/api/v1/theme/([^/]+)$#',$path,$m)===1){$type=rawurldecode($m[1]);if(!validType($type))jsonResponse(400,['error'=>'invalid_type','message'=>'Tipo de daltonismo no soportado']);$q=$_GET;$severity=(string)($q['severity']??'');$mode=(string)($q['mode']??'');$hcRaw=(string)($q['high_contrast']??'');if($hcRaw!==''&&!in_array($hcRaw,['true','false','1','0'],true))jsonResponse(400,['error'=>'invalid_parameter','message'=>'high_contrast debe ser true o false']);$result=getTheme($type,$severity,$mode,in_array($hcRaw,['true','1'],true),$severity!==''||$mode!==''||$hcRaw!=='');jsonResponse(isset($result['error'])?400:200,$result);}
+if($method==='POST'&&$path==='/api/v1/simulate'){
+    $body=json_decode(file_get_contents('php://input')?:'',true);
+    if(!is_array($body)||!onlyKeys($body,['hex','type','severity']))jsonResponse(400,['error'=>'invalid_request','message'=>'JSON de entrada inválido']);
+    $type=is_string($body['type']??null)?$body['type']:'';
+    if(!validSimulationType($type))jsonResponse(400,['error'=>'invalid_type','message'=>'Tipo de daltonismo no soportado']);
+    $provided=array_key_exists('severity',$body);$severity=simulationSeverity($body['severity']??null,$provided);
+    if($severity===null)jsonResponse(400,['error'=>'invalid_parameter','message'=>'severity debe estar entre 0 y 1']);
+    $original=normalizeSimulationHex($body['hex']??null);
+    if($original===null)jsonResponse(400,['error'=>'invalid_color','message'=>'hex debe usar formato #RRGGBB']);
+    jsonResponse(200,['original'=>$original,'simulated'=>simulateMachadoHex($original,$type,$severity),'type'=>$type,'severity'=>$severity,'model'=>MACHADO_MODEL]);
+}
+if($method==='POST'&&$path==='/api/v1/simulate/batch'){
+    $body=json_decode(file_get_contents('php://input')?:'',true);
+    if(!is_array($body)||!onlyKeys($body,['colors','type','severity']))jsonResponse(400,['error'=>'invalid_request','message'=>'JSON de entrada inválido']);
+    $colors=$body['colors']??null;
+    if(!is_array($colors)||!array_is_list($colors))jsonResponse(400,['error'=>'invalid_request','message'=>'JSON de entrada inválido']);
+    if(count($colors)<1||count($colors)>256)jsonResponse(400,['error'=>'invalid_request','message'=>'colors debe contener entre 1 y 256 colores']);
+    $type=is_string($body['type']??null)?$body['type']:'';
+    if(!validSimulationType($type))jsonResponse(400,['error'=>'invalid_type','message'=>'Tipo de daltonismo no soportado']);
+    $provided=array_key_exists('severity',$body);$severity=simulationSeverity($body['severity']??null,$provided);
+    if($severity===null)jsonResponse(400,['error'=>'invalid_parameter','message'=>'severity debe estar entre 0 y 1']);
+    $results=[];
+    foreach($colors as $color){$original=normalizeSimulationHex($color);if($original===null)jsonResponse(400,['error'=>'invalid_color','message'=>'cada color debe usar formato #RRGGBB']);$results[]=['original'=>$original,'simulated'=>simulateMachadoHex($original,$type,$severity)];}
+    jsonResponse(200,['type'=>$type,'severity'=>$severity,'model'=>MACHADO_MODEL,'results'=>$results]);
+}
 if($method==='POST'&&$path==='/api/v1/theme/custom'){$body=json_decode(file_get_contents('php://input')?:'',true);if(!is_array($body))jsonResponse(400,['error'=>'invalid_request','message'=>'JSON de entrada inválido']);$result=customTheme($body);jsonResponse(isset($result['error'])?400:200,$result);}
 if($method==='POST'&&$path==='/api/v1/test/suggest'){$body=json_decode(file_get_contents('php://input')?:'',true);if(!is_array($body)||!is_array($body['answers']??null))jsonResponse(400,['error'=>'invalid_request','message'=>'JSON de entrada inválido']);$a=$body['answers'];$suggested='normal';if(($a['colors_look_gray']??false)===true)$suggested='achromatopsia';elseif(($a['blue_yellow_confusion']??false)===true)$suggested='tritanopia';elseif(($a['reds_look_darker']??false)===true&&($a['green_brown_confusion']??false)===true)$suggested='protanopia';elseif(($a['green_brown_confusion']??false)===true)$suggested='deuteranopia';elseif(($a['reds_look_darker']??false)===true)$suggested='protanopia';jsonResponse(200,['suggested_type'=>$suggested,'disclaimer'=>'Resultado orientativo. No es un diagnóstico médico.']);}
 jsonResponse(404,['error'=>'not_found']);

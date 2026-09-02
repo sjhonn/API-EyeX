@@ -1,66 +1,85 @@
-<!-- Este README es la unica guia general del repositorio y explica como usar, integrar, probar y desplegar EyeX. -->
 # EyeX
+
+[![EyeX CI](https://github.com/sjhonn/API-EyeX/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sjhonn/API-EyeX/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-63.9%25-yellowgreen)](https://github.com/sjhonn/API-EyeX/actions/workflows/ci.yml)
+[![Go](https://img.shields.io/badge/Go-1.23%2B-00ADD8?logo=go&logoColor=white)](https://go.dev/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 <img src="frontend/html-js/assets/logo.png" alt="Logo de EyeX" width="180">
 
-EyeX es una API de temas de pantalla para interfaces que necesitan ofrecer opciones de color orientadas a daltonismo, baja visión y alto contraste. En vez de cambiar colores uno por uno, devuelve una paleta completa con fondo, superficie, texto, acciones y estados para aplicarla como tema global.
+EyeX es una API de accesibilidad visual orientada a color. Entrega temas para daltonismo, baja visión y alto contraste, y desde `v1.2.0` también permite simular cómo cambia un color bajo protanopia, deuteranopia o tritanopia con severidad continua.
 
-El proyecto incluye un backend principal en Go, implementaciones equivalentes en PHP, TypeScript con Node y Java, una web de prueba, un cliente Vue, un CSS estático, un widget embebible, una extensión de navegador y SDKs para React, React Native y Flutter.
+El contrato HTTP principal está disponible en Go y mantiene implementaciones equivalentes en PHP, TypeScript/Node y Java. El repositorio también incluye clientes web, SDKs, una extensión de navegador y manifiestos de infraestructura. Este README se concentra en desarrollo y uso del API; el hosting no forma parte del alcance de esta versión.
 
-EyeX no diagnostica condiciones visuales. El test rápido incluido es únicamente orientativo y no reemplaza una evaluación médica ni una auditoría completa de accesibilidad.
+## Quickstart — 30 segundos
 
-## Qué puede hacer
-
-- Temas para `normal`, `protanopia`, `deuteranopia`, `tritanopia`, `achromatopsia` y `low_vision`.
-- Intensidad `mild`, `moderate` o `severe`.
-- Modo `dark` o `light`.
-- Alto contraste combinable con cualquier tipo.
-- Comprobación WCAG AA de `text` contra `background` y `surface` con umbral 4.5:1.
-- Adaptación de una paleta de marca mediante `POST /api/v1/theme/custom`.
-- Test orientativo de cuatro preguntas.
-- CSS estático en `/eyex.css`.
-- Widget embebible en `/eyex.js`.
-- Contrato OpenAPI importable desde `/openapi.yaml` o desde el archivo `openapi.yaml` del repositorio.
-- Errores JSON estandarizados en español e inglés.
-- CORS explícito para consumo desde navegadores.
-- ETag y `Cache-Control` para temas.
-- Límite público de solicitudes y API key opcional para omitir ese límite.
-- Headers de seguridad y HTTPS obligatorio cuando `EYEX_ENV=production`.
-- Logs JSON por request y métricas Prometheus en `/metrics`.
-- Pruebas automáticas de paridad entre Go, PHP, TypeScript/Node y Java.
-
-## Ejecutar localmente con Docker Desktop
-
-Desde la raíz del repositorio:
-
-```bash
-docker build -t eyex .
-docker run --rm --name eyex -p 8080:8080 eyex
-```
-
-Abre:
-
-```text
-http://localhost:8080
-```
-
-La web y la API se sirven desde el mismo proceso Go.
-
-También puedes ejecutar el backend principal sin Docker:
+Requisito: Go 1.23 o superior.
 
 ```bash
 go run ./cmd/api
 ```
 
-## Endpoints principales
+En otra terminal:
 
-### Obtener tipos disponibles
+```bash
+curl http://localhost:8080/api/v1/theme/types
 
-```http
-GET /api/v1/theme/types
+curl -X POST http://localhost:8080/api/v1/simulate \
+  -H 'Content-Type: application/json' \
+  -d '{"hex":"#FF0000","type":"protanopia","severity":0.65}'
 ```
 
-Respuesta:
+Resultado de la simulación:
+
+```json
+{
+  "original": "#FF0000",
+  "simulated": "#A05A00",
+  "type": "protanopia",
+  "severity": 0.65,
+  "model": "machado-2009"
+}
+```
+
+La web principal queda disponible en `http://localhost:8080/` y el contrato OpenAPI en `http://localhost:8080/openapi.yaml`.
+
+## Funcionalidad
+
+EyeX incluye:
+
+- temas para `normal`, `protanopia`, `deuteranopia`, `tritanopia`, `achromatopsia` y `low_vision`;
+- intensidad de temas `mild`, `moderate` o `severe`;
+- modos `dark` y `light`;
+- opción de alto contraste;
+- validación WCAG AA de texto contra `background` y `surface` con umbral 4.5:1;
+- adaptación de paletas propias con `POST /api/v1/theme/custom`;
+- test orientativo con `POST /api/v1/test/suggest`;
+- simulación de color individual con `POST /api/v1/simulate`;
+- simulación de hasta 256 colores con `POST /api/v1/simulate/batch`;
+- implementación de simulación equivalente en Go, PHP, TypeScript/Node y Java;
+- OpenAPI 3.0.3, CI, pruebas de paridad, cobertura Go, SDKs y extensión de navegador;
+- CORS, JSON logging, ETag para temas, rate limit, API key opcional, headers de seguridad, timeout y métricas Prometheus en el servidor Go oficial.
+
+## Endpoints del API v1
+
+| Método | Ruta | Función |
+| --- | --- | --- |
+| `GET` | `/api/v1/theme/types` | Lista tipos de tema. |
+| `GET` | `/api/v1/theme/{type}` | Devuelve una paleta de tema. |
+| `POST` | `/api/v1/theme/custom` | Adapta una paleta proporcionada por el cliente. |
+| `POST` | `/api/v1/test/suggest` | Sugiere un tipo de tema de forma orientativa. |
+| `POST` | `/api/v1/simulate` | Simula un color con severidad continua. |
+| `POST` | `/api/v1/simulate/batch` | Simula entre 1 y 256 colores. |
+| `GET` | `/metrics` | Métricas Prometheus del servidor Go. |
+| `GET` | `/openapi.yaml` | Contrato OpenAPI del servidor Go. |
+| `GET` | `/eyex.css` | Paletas CSS estáticas. |
+| `GET` | `/eyex.js` | Widget embebible. |
+
+### Tipos de tema
+
+```bash
+curl http://localhost:8080/api/v1/theme/types
+```
 
 ```json
 {
@@ -77,98 +96,178 @@ Respuesta:
 
 ### Obtener un tema
 
-```http
-GET /api/v1/theme/{type}
-```
-
-El contrato original sigue funcionando sin parámetros. Ejemplo:
-
-```http
-GET /api/v1/theme/deuteranopia
-```
-
-```json
-{
-  "type": "deuteranopia",
-  "palette": {
-    "background": "#1E1E1E",
-    "surface": "#2A2A2A",
-    "text": "#F5F5F5",
-    "primary": "#4A90D9",
-    "secondary": "#D9A24A",
-    "error": "#D94A4A",
-    "success": "#4AD98C"
-  },
-  "contrast_ok": true
-}
+```bash
+curl 'http://localhost:8080/api/v1/theme/deuteranopia?severity=moderate&mode=dark&high_contrast=true'
 ```
 
 Parámetros opcionales:
 
 | Parámetro | Valores | Uso |
 | --- | --- | --- |
-| `severity` | `mild`, `moderate`, `severe` | Intensidad de la adaptación. |
+| `severity` | `mild`, `moderate`, `severe` | Intensidad de adaptación del tema. |
 | `mode` | `dark`, `light` | Variante clara u oscura. |
-| `high_contrast` | `true`, `false` | Refuerza el contraste del tema. |
+| `high_contrast` | `true`, `false` | Refuerza el contraste. |
 
-Ejemplo:
-
-```http
-GET /api/v1/theme/protanopia?severity=moderate&mode=light&high_contrast=true
-```
-
-`low_vision` prioriza alto contraste de manera predeterminada.
+Sin parámetros se conserva el comportamiento compatible con versiones anteriores.
 
 ### Adaptar una paleta propia
 
-```http
-POST /api/v1/theme/custom
-Content-Type: application/json
-```
-
-```json
-{
-  "type": "deuteranopia",
-  "severity": "moderate",
-  "mode": "dark",
-  "high_contrast": true,
-  "palette": {
-    "background": "#101820",
-    "surface": "#182430",
-    "text": "#F8F9FA",
-    "primary": "#E63946",
-    "secondary": "#2A9D8F",
-    "error": "#D62828",
-    "success": "#2A9D8F"
-  }
-}
+```bash
+curl -X POST http://localhost:8080/api/v1/theme/custom \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "type":"deuteranopia",
+    "severity":"moderate",
+    "mode":"dark",
+    "high_contrast":true,
+    "palette":{
+      "background":"#101820",
+      "surface":"#182430",
+      "text":"#F8F9FA",
+      "primary":"#E63946",
+      "secondary":"#2A9D8F",
+      "error":"#D62828",
+      "success":"#2A9D8F"
+    }
+  }'
 ```
 
 Todos los colores de entrada deben usar `#RRGGBB`.
 
 ### Test orientativo
 
-```http
-POST /api/v1/test/suggest
-Content-Type: application/json
+```bash
+curl -X POST http://localhost:8080/api/v1/test/suggest \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "answers":{
+      "reds_look_darker":false,
+      "green_brown_confusion":false,
+      "blue_yellow_confusion":true,
+      "colors_look_gray":false
+    }
+  }'
 ```
+
+El resultado es una sugerencia de configuración. No constituye un diagnóstico médico.
+
+## Simulación de colores — v1.2.0
+
+### `POST /api/v1/simulate`
+
+Entrada:
 
 ```json
 {
-  "answers": {
-    "reds_look_darker": false,
-    "green_brown_confusion": false,
-    "blue_yellow_confusion": true,
-    "colors_look_gray": false
-  }
+  "hex": "#FF0000",
+  "type": "protanopia",
+  "severity": 0.65
 }
 ```
 
-El resultado sugiere qué tema probar primero y siempre deja claro que no es un diagnóstico médico.
+`type` admite exclusivamente:
 
-## Errores estandarizados
+- `protanopia`;
+- `deuteranopia`;
+- `tritanopia`.
 
-Todo error controlado responde únicamente con:
+`severity` es un número continuo entre `0` y `1`:
+
+- `0`: identidad, no modifica el color;
+- `1`: simulación completa de la deficiencia;
+- valores intermedios: interpolación lineal de las matrices tabuladas cada `0.1`.
+
+Si `severity` se omite, EyeX usa `1`.
+
+Ejemplo:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/simulate \
+  -H 'Content-Type: application/json' \
+  -d '{"hex":"#FF0000","type":"protanopia","severity":0.65}'
+```
+
+Respuesta:
+
+```json
+{
+  "original": "#FF0000",
+  "simulated": "#A05A00",
+  "type": "protanopia",
+  "severity": 0.65,
+  "model": "machado-2009"
+}
+```
+
+### `POST /api/v1/simulate/batch`
+
+Aplica el mismo `type` y `severity` a una lista de entre 1 y 256 colores.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/simulate/batch \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "colors":["#FF0000","#00FF00","#0000FF"],
+    "type":"deuteranopia",
+    "severity":0.5
+  }'
+```
+
+Respuesta:
+
+```json
+{
+  "type": "deuteranopia",
+  "severity": 0.5,
+  "model": "machado-2009",
+  "results": [
+    {"original":"#FF0000","simulated":"#C37600"},
+    {"original":"#00FF00","simulated":"#CDE52E"},
+    {"original":"#0000FF","simulated":"#0036FD"}
+  ]
+}
+```
+
+### Modelo matemático
+
+La simulación usa las matrices publicadas por Gustavo M. Machado, Manuel M. Oliveira y Leandro A. F. Fernandes en *A Physiologically-based Model for Simulation of Color Vision Deficiency*, IEEE TVCG 15(6), 2009, DOI `10.1109/TVCG.2009.113`.
+
+La implementación:
+
+1. convierte sRGB con gamma a RGB lineal;
+2. interpola las matrices de severidad cuando el valor no cae exactamente en un paso de `0.1`;
+3. aplica la multiplicación matricial en RGB lineal;
+4. limita cada canal al rango representable;
+5. convierte nuevamente a sRGB y devuelve `#RRGGBB` en mayúsculas.
+
+Los cuatro backends comparten los mismos coeficientes, reglas de interpolación, conversión sRGB y redondeo de salida.
+
+## Paridad entre Go, PHP, TypeScript/Node y Java
+
+[![Última paridad verificada](https://img.shields.io/github/actions/workflow/status/sjhonn/API-EyeX/ci.yml?branch=main&label=%C3%BAltima%20paridad%20verificada%20%E2%9C%85)](https://github.com/sjhonn/API-EyeX/actions/workflows/ci.yml?query=branch%3Amain)
+
+El workflow `EyeX CI` levanta los cuatro backends en puertos independientes y ejecuta `tests/parity.py`. Se comparan status HTTP y JSON, y además se validan vectores conocidos de Machado para evitar que una misma regresión pase inadvertida en los cuatro lenguajes.
+
+El enlace del badge abre los runs del workflow; el run exitoso más reciente de `main` representa la última paridad verificada en GitHub Actions. Los cambios locales de este ZIP quedan verificados por las pruebas descritas más abajo y deberán obtener su propio run al publicarse.
+
+Casos cubiertos por la paridad HTTP:
+
+- listado de tipos, tema legado y tema con parámetros;
+- paleta personalizada y test orientativo;
+- errores históricos `invalid_type` e `invalid_parameter`;
+- severidades interpoladas de referencia (`0.25`, `0.5`, `0.65`) y los 11 anchors `0.0..1.0` de cada familia Machado;
+- protanopia, deuteranopia y tritanopia;
+- normalización de hexadecimal;
+- severidad por defecto;
+- batch;
+- `invalid_type`;
+- `invalid_parameter`;
+- `invalid_color`;
+- `invalid_request` para batch vacío, `colors` no-array y campos JSON no permitidos.
+
+## Errores y ejemplos `curl`
+
+Los errores controlados usan:
 
 ```json
 {
@@ -177,31 +276,118 @@ Todo error controlado responde únicamente con:
 }
 ```
 
-Códigos públicos:
-
-| Código | HTTP | Significado |
-| --- | ---: | --- |
-| `invalid_type` | 400 | El tipo no pertenece a los tipos soportados o la ruta del tipo es sospechosa. |
-| `invalid_parameter` | 400 | Un query parameter no tiene un valor permitido. |
-| `invalid_request` | 400 | El JSON está mal formado, es demasiado grande o no cumple la estructura esperada. |
-| `invalid_palette` | 400 | La paleta personalizada es incompleta o contiene colores inválidos. |
-| `not_found` | 404 | La ruta o recurso solicitado no existe. |
-| `method_not_allowed` | 405 | La ruta existe pero no admite el método HTTP utilizado. |
-| `https_required` | 426 | En producción la petición no llegó mediante HTTPS. |
-| `rate_limited` | 429 | Se agotó el límite público por minuto. |
-| `internal_server_error` | 500 | Error interno sin exponer stack trace. |
-| `timeout` | 504 | La operación superó el tiempo máximo configurado. |
-
-## Español e inglés
-
-EyeX usa `Accept-Language` para el campo `message` de los errores.
+### `invalid_type` — HTTP 400
 
 ```bash
-curl -H "Accept-Language: es" http://localhost:8080/api/v1/theme/no-existe
-curl -H "Accept-Language: en" http://localhost:8080/api/v1/theme/no-existe
+curl -i http://localhost:8080/api/v1/theme/no-existe
 ```
 
-En inglés el mismo error devuelve, por ejemplo:
+También se produce al usar un tipo no permitido en `/simulate`.
+
+### `invalid_parameter` — HTTP 400
+
+```bash
+curl -i -X POST http://localhost:8080/api/v1/simulate \
+  -H 'Content-Type: application/json' \
+  -d '{"hex":"#FF0000","type":"protanopia","severity":1.5}'
+```
+
+### `invalid_request` — HTTP 400
+
+```bash
+curl -i -X POST http://localhost:8080/api/v1/simulate \
+  -H 'Content-Type: application/json' \
+  --data-binary '{json-invalido'
+```
+
+### `invalid_palette` — HTTP 400
+
+```bash
+curl -i -X POST http://localhost:8080/api/v1/theme/custom \
+  -H 'Content-Type: application/json' \
+  -d '{"type":"deuteranopia","palette":{"background":"red"}}'
+```
+
+### `invalid_color` — HTTP 400
+
+```bash
+curl -i -X POST http://localhost:8080/api/v1/simulate \
+  -H 'Content-Type: application/json' \
+  -d '{"hex":"red","type":"protanopia","severity":0.5}'
+```
+
+### `not_found` — HTTP 404
+
+```bash
+curl -i http://localhost:8080/api/v1/no-existe
+```
+
+### `method_not_allowed` — HTTP 405
+
+```bash
+curl -i -X DELETE http://localhost:8080/api/v1/theme/types
+```
+
+### `https_required` — HTTP 426, servidor Go en producción
+
+Ejecuta temporalmente otra instancia:
+
+```bash
+EYEX_ENV=production EYEX_PORT=8089 go run ./cmd/api
+```
+
+Luego realiza una petición HTTP sin TLS ni `X-Forwarded-Proto: https`:
+
+```bash
+curl -i http://localhost:8089/api/v1/theme/types
+```
+
+### `rate_limited` — HTTP 429, servidor Go
+
+Ejecuta temporalmente una instancia con límite de una petición por minuto:
+
+```bash
+EYEX_RATE_LIMIT_PER_MINUTE=1 EYEX_PORT=8089 go run ./cmd/api
+```
+
+En otra terminal:
+
+```bash
+curl -i http://localhost:8089/api/v1/theme/types
+curl -i http://localhost:8089/api/v1/theme/types
+```
+
+La segunda petición responde `429` e incluye `Retry-After`.
+
+### `timeout` — HTTP 504
+
+Cualquier request puede recibirlo si el procesamiento supera `EYEX_REQUEST_TIMEOUT_MS`. Ejemplo de request sobre el que aplicaría el timeout configurado:
+
+```bash
+curl -i http://localhost:8080/api/v1/theme/deuteranopia
+```
+
+No se publica un endpoint artificialmente lento solo para forzar este error. El comportamiento del middleware se prueba de forma determinista en `internal/middleware/middleware_test.go`.
+
+### `internal_server_error` — HTTP 500
+
+Cualquier endpoint puede devolverlo si ocurre un fallo inesperado recuperado por el servidor. Ejemplo de request normal sujeto a esa protección:
+
+```bash
+curl -i http://localhost:8080/api/v1/theme/types
+```
+
+No se expone una ruta pública que provoque un panic deliberadamente. El servidor devuelve JSON sin stack trace al cliente y registra el incidente en los logs del proceso.
+
+### Mensajes en inglés
+
+El servidor Go utiliza `Accept-Language` en errores controlados:
+
+```bash
+curl -H 'Accept-Language: en' http://localhost:8080/api/v1/theme/no-existe
+```
+
+Respuesta:
 
 ```json
 {
@@ -210,7 +396,7 @@ En inglés el mismo error devuelve, por ejemplo:
 }
 ```
 
-## Caché HTTP
+## Caché HTTP de temas
 
 `GET /api/v1/theme/{type}` devuelve `ETag` y `Cache-Control`.
 
@@ -218,7 +404,7 @@ En inglés el mismo error devuelve, por ejemplo:
 curl -i http://localhost:8080/api/v1/theme/deuteranopia
 ```
 
-Con el ETag recibido:
+Reutiliza el ETag:
 
 ```bash
 curl -i \
@@ -226,72 +412,41 @@ curl -i \
   http://localhost:8080/api/v1/theme/deuteranopia
 ```
 
-Si el contenido no cambió, EyeX responde `304 Not Modified` sin reenviar el JSON.
+Si no cambió, el servidor Go responde `304 Not Modified`.
 
-## CORS
+## Configuración
 
-El backend principal permite consumo desde navegador y responde preflight `OPTIONS`. Por defecto `EYEX_ALLOWED_ORIGIN=*`.
+EyeX conserva un único archivo `.env` en la raíz. No se requieren ni se generan archivos `.env` adicionales para PHP, TypeScript/Node, Java, SDKs o frontends.
 
-Headers permitidos:
+Variables soportadas por el servidor Go:
 
-```text
-Accept
-Accept-Language
-Content-Type
-If-None-Match
-X-API-Key
-```
+| Variable | Default | Uso |
+| --- | --- | --- |
+| `EYEX_PORT` | `8080` | Puerto HTTP. |
+| `EYEX_ALLOWED_ORIGIN` | `*` | Origin permitido por CORS. |
+| `EYEX_ENV` | `development` | `development`, `test` o `production`. |
+| `EYEX_RATE_LIMIT_PER_MINUTE` | `60` | Solicitudes públicas por minuto e IP. |
+| `EYEX_REQUEST_TIMEOUT_MS` | `5000` | Tiempo máximo por request. |
+| `EYEX_API_KEY` | vacío | Si está configurada y coincide con `X-API-Key`, omite el rate limit público. |
 
-## Límite de solicitudes y API key
+## Seguridad y observabilidad del servidor Go
 
-Sin API key se aplica `EYEX_RATE_LIMIT_PER_MINUTE`. El valor local predeterminado es 60 solicitudes por minuto y dirección IP.
+El backend Go añade:
 
-Cuando se supera el límite:
+- `Content-Security-Policy`;
+- `X-Content-Type-Options: nosniff`;
+- `X-Frame-Options: DENY`;
+- `Referrer-Policy: no-referrer`;
+- `Permissions-Policy`;
+- HSTS en `EYEX_ENV=production`;
+- HTTPS obligatorio en producción, considerando `X-Forwarded-Proto: https` cuando existe un proxy TLS;
+- recuperación de panics sin stack trace en la respuesta;
+- logs JSON mediante `slog`;
+- límite público de requests con bypass opcional por API key;
+- timeout de request;
+- métricas Prometheus en `/metrics`.
 
-```json
-{
-  "error": "rate_limited",
-  "message": "Límite de solicitudes excedido"
-}
-```
-
-Para una integración autorizada, el operador puede configurar `EYEX_API_KEY` y el cliente envía:
-
-```http
-X-API-Key: TU_CLAVE
-```
-
-Con una clave válida no se aplica el límite público. No guardes una clave real en GitHub; configúrala como secreto del proveedor de hosting.
-
-## Seguridad
-
-EyeX agrega, entre otros:
-
-```text
-Content-Security-Policy
-X-Content-Type-Options: nosniff
-X-Frame-Options: DENY
-Referrer-Policy: no-referrer
-Permissions-Policy
-```
-
-Cuando `EYEX_ENV=production`, también agrega:
-
-```text
-Strict-Transport-Security: max-age=31536000; includeSubDomains
-```
-
-En producción una petición que no llegue por TLS o por un proxy que indique `X-Forwarded-Proto: https` recibe `426 https_required`.
-
-Las rutas de tipo rechazan traversal, barras codificadas, backslashes y segmentos `..` antes de consultar la lógica del tema.
-
-## Métricas y logs
-
-```http
-GET /metrics
-```
-
-El formato es compatible con Prometheus e incluye al menos:
+Métricas expuestas:
 
 ```text
 eyex_http_requests_total
@@ -301,154 +456,142 @@ eyex_theme_requests_total{type="..."}
 eyex_request_latency_p95_seconds
 ```
 
-El servidor Go escribe un objeto JSON por request con método, ruta, status, latencia, tipo y dirección remota.
+## Alcance de accesibilidad
 
-## OpenAPI, Postman y Swagger
+EyeX cubre adaptación y simulación de **color** y ofrece una señal limitada de contraste de texto. No convierte por sí solo una aplicación en accesible.
 
-El contrato completo está en:
+Fuera de alcance de EyeX están, entre otros:
 
-```text
-openapi.yaml
-```
+- navegación completa por teclado;
+- orden de foco y focus traps;
+- atributos ARIA;
+- roles y semántica HTML;
+- nombres accesibles;
+- compatibilidad con lectores de pantalla;
+- subtítulos, transcripciones y alternativas para contenido no textual;
+- tamaño y espaciado tipográfico;
+- reflow y zoom;
+- accesibilidad de documentos, canvas, SVG complejo o contenido de terceros.
 
-Con el servidor Go activo también está disponible en:
+Una integración que aspire a WCAG debe evaluar esos aspectos por separado.
 
-```text
-http://localhost:8080/openapi.yaml
-```
+## Extensión de navegador: permisos y límites
 
-Puedes importarlo directamente en Postman o Swagger UI. El CI ejecuta Spectral sobre este archivo para impedir que un contrato inválido llegue a `main`.
+La extensión está en `extension/browser` y usa Manifest V3.
 
-## Playground web
+Permisos actuales:
 
-La página principal consulta la API real del mismo host. No utiliza paletas mockeadas para el demo. Permite elegir tipo, intensidad, modo y alto contraste y aplica el resultado como variables CSS a la propia interfaz.
+- `storage`: guarda `eyexType`, `eyexMode` y `eyexEnabled` mediante `storage.sync`;
+- `content_scripts.matches: <all_urls>`: permite que `content.js` inserte el estilo EyeX en páginas web compatibles.
 
-```text
-http://localhost:8080/
-```
+La extensión no solicita `tabs`, `history`, `cookies`, `webRequest`, `downloads`, `clipboardRead`, `clipboardWrite` ni acceso a credenciales. El código actual no envía el contenido de la página a la API.
 
-## CSS estático
+Limitaciones relevantes:
 
-```html
-<link rel="stylesheet" href="https://TU_HOST/eyex.css">
-```
+- `<all_urls>` es un alcance amplio y debe justificarse al publicar la extensión;
+- los navegadores bloquean content scripts en páginas internas como `chrome://`, `edge://` y otras superficies protegidas;
+- algunas tiendas, páginas privilegiadas, visores PDF e iframes pueden imponer restricciones adicionales;
+- estilos dentro de closed Shadow DOM no pueden ser reescritos desde el content script;
+- CSS con alta especificidad, canvas, imágenes y contenido renderizado por WebGL no necesariamente cambian con la inyección CSS;
+- la extensión aplica paletas locales y no ejecuta la nueva simulación pixel a pixel sobre la página.
 
-Luego:
+Consulta también `extension/browser/README.md`.
 
-```html
-<html data-eyex-theme="deuteranopia" data-eyex-mode="dark">
-```
+## SDKs
 
-Para alto contraste:
+Cada SDK tiene su propio README con instalación y ejemplo mínimo:
 
-```html
-<html data-eyex-theme="deuteranopia" data-eyex-mode="dark" data-eyex-high-contrast="true">
-```
+- `sdk/react/README.md`;
+- `sdk/react-native/README.md`;
+- `sdk/flutter/README.md`.
 
-## Widget embebible
+Los tres clientes incluyen temas, paletas personalizadas, sugerencia y los métodos `simulate` / `simulateBatch`.
 
-Cuando el widget y la API están publicados en el mismo host:
+También se mantiene `sdk-ts` como cliente TypeScript genérico del contrato `v1`.
 
-```html
-<script src="https://TU_HOST/eyex.js"></script>
-```
+## Ejecutar los cuatro backends
 
-El script agrega el selector flotante y consulta la API de EyeX.
-
-## Implementaciones incluidas
-
-| Implementación | Ruta | Rol |
-| --- | --- | --- |
-| Go | `cmd/api` + `internal` | Backend oficial y servidor de la web. |
-| PHP | `implementations/php` | Backend equivalente. |
-| TypeScript/Node | `implementations/typescript-node` | Backend Fastify equivalente. |
-| Java | `implementations/java` | Backend Spring Boot equivalente. |
-| HTML + JS | `frontend/html-js` | Playground principal. |
-| Vue | `frontend/vue` | Cliente alternativo. |
-| React | `sdk/react` | SDK web. |
-| React Native | `sdk/react-native` | SDK móvil JavaScript. |
-| Flutter | `sdk/flutter` | SDK móvil Dart. |
-| Extensión | `extension/browser` | Aplicación de temas desde el navegador. |
-
-## Comprobar paridad entre backends
-
-El archivo `tests/parity.py` llama a las cuatro implementaciones con los mismos datos y falla si el status o el JSON no son idénticos.
-
-El CI levanta Go, PHP, TypeScript/Node y Java en puertos independientes y ejecuta automáticamente esa comparación.
-
-Para validar el backend oficial por HTTP:
+Las instrucciones completas están en `CONTRIBUTING.md`. Resumen:
 
 ```bash
-./tests/smoke.sh http://localhost:8080
+# Go — :8080
+EYEX_PORT=8080 go run ./cmd/api
+
+# PHP — :8081
+php -S 127.0.0.1:8081 implementations/php/public/index.php
+
+# TypeScript/Node — :8082
+cd implementations/typescript-node
+npm install
+npm run build
+EYEX_PORT=8082 npm start
+
+# Java — :8083
+cd implementations/java
+EYEX_PORT=8083 mvn spring-boot:run
 ```
 
-## Configuración
+## OpenAPI y compatibilidad
 
-El proyecto mantiene un único archivo `.env` local. `.gitignore` evita que se publique accidentalmente en GitHub.
+`openapi.yaml` es el contrato público versionado. `v1.2.0` agrega `/api/v1/simulate` y `/api/v1/simulate/batch` de forma aditiva; no modifica ni elimina las rutas de tema existentes.
 
-Variables reconocidas:
+El CI valida que las rutas históricas y las nuevas continúen presentes y ejecuta la paridad HTTP del contrato v1 —incluida la simulación— antes de considerar el workflow correcto.
 
-| Variable | Predeterminado | Función |
-| --- | --- | --- |
-| `EYEX_PORT` | `8080` | Puerto local. Si no está definido, Go también reconoce `PORT` del hosting. |
-| `EYEX_ALLOWED_ORIGIN` | `*` | Origin permitido por CORS. |
-| `EYEX_ENV` | `development` | Usa `production` para habilitar HTTPS obligatorio y HSTS. |
-| `EYEX_RATE_LIMIT_PER_MINUTE` | `60` | Límite público por IP. |
-| `EYEX_REQUEST_TIMEOUT_MS` | `5000` | Tiempo máximo de ejecución del request. |
-| `EYEX_API_KEY` | vacío | Clave opcional que omite el rate limit. |
+## Versionado semántico y deprecación
 
-## Publicar desde GitHub con Render
+EyeX usa Semantic Versioning `MAJOR.MINOR.PATCH`:
 
-El repositorio incluye `render.yaml` y `Dockerfile`.
+- `PATCH`: correcciones compatibles sin cambiar el contrato público;
+- `MINOR`: capacidades aditivas compatibles, como los endpoints de simulación de `v1.2.0`;
+- `MAJOR`: cambios incompatibles en rutas, campos requeridos, semántica o tipos.
 
-Después de subir EyeX a GitHub:
+Política para `/api/v1/`:
 
-1. En Render selecciona **New > Blueprint**.
-2. Conecta el repositorio de EyeX.
-3. Render detectará `render.yaml`.
-4. Crea el servicio.
-5. Si quieres integraciones sin límite público, configura `EYEX_API_KEY` como secreto desde el panel de Render.
+1. no se eliminan ni renombran rutas o campos existentes dentro de `v1` sin un periodo de deprecación;
+2. una deprecación se anuncia en README y CHANGELOG y, cuando aplique, mediante headers `Deprecation`, `Sunset` y `Link`;
+3. el periodo objetivo mínimo es 90 días antes de retirar comportamiento público;
+4. una ruptura deliberada del contrato se publica bajo una nueva versión mayor de API, por ejemplo `/api/v2/`;
+5. correcciones urgentes de seguridad pueden acortar el periodo si mantener el comportamiento representa un riesgo material;
+6. añadir campos opcionales o nuevas rutas es compatible dentro de `v1`.
 
-La misma URL pública servirá la web y la API:
+## Pruebas locales
+
+```bash
+go test ./...
+go vet ./...
+php -l implementations/php/public/index.php
+php -l implementations/php/simulation.php
+tsc --target ES2022 --module NodeNext --moduleResolution NodeNext --strict --noEmit implementations/typescript-node/src/simulation.ts
+python3 -m py_compile tests/parity.py
+```
+
+Con las dependencias instaladas también deben ejecutarse los builds de TypeScript, Java, Vue y SDKs definidos en `.github/workflows/ci.yml`.
+
+## Estructura principal
 
 ```text
-https://TU_HOST/
-https://TU_HOST/api/v1/theme/types
-https://TU_HOST/api/v1/theme/deuteranopia
-https://TU_HOST/openapi.yaml
-https://TU_HOST/metrics
+cmd/api/                         backend Go
+internal/                        handlers, configuración, middleware y temas
+pkg/colorblind/                  simulación y utilidades cromáticas
+implementations/php/             backend PHP
+implementations/typescript-node/ backend Fastify
+implementations/java/            backend Spring Boot
+frontend/html-js/                playground principal
+frontend/vue/                    cliente Vue
+web/                             demo TypeScript ligera del contrato v1.2
+sdk/react/                       SDK React
+sdk/react-native/                SDK React Native
+sdk/flutter/                     SDK Flutter
+sdk-ts/                          SDK TypeScript genérico
+extension/browser/               extensión Manifest V3
+tests/parity.py                  paridad HTTP de los cuatro backends
+openapi.yaml                     contrato OpenAPI 3.0.3
 ```
 
-Los manifiestos Kubernetes permanecen en `deploy/k8s` y Terraform en `deploy/terraform` para despliegues administrados por infraestructura.
+## Contribuir
 
-## Integración desde JavaScript
+Lee `CONTRIBUTING.md` antes de abrir cambios. Cualquier modificación de una ruta compartida debe actualizar, cuando corresponda, los cuatro backends, `openapi.yaml`, las pruebas de paridad, el README y el CHANGELOG.
 
-```javascript
-const response = await fetch(
-  'https://TU_HOST/api/v1/theme/deuteranopia?severity=moderate&mode=dark'
-);
-const data = await response.json();
+## Licencia
 
-for (const [name, value] of Object.entries(data.palette)) {
-  document.documentElement.style.setProperty(`--eyex-${name}`, value);
-}
-```
-
-Luego:
-
-```css
-body {
-  background: var(--eyex-background);
-  color: var(--eyex-text);
-}
-
-.card {
-  background: var(--eyex-surface);
-}
-```
-
-## Contribuir y licencia
-
-Las instrucciones de colaboración están en `CONTRIBUTING.md`. El repositorio utiliza licencia MIT, disponible en `LICENSE`.
-
-Al subir el proyecto a GitHub, el workflow de gobernanza crea de forma idempotente la etiqueta `good first issue` y tres tareas iniciales para nuevos colaboradores.
+MIT. Consulta `LICENSE`.

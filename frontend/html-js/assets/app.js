@@ -90,6 +90,60 @@
     } catch (error) { customStatus.textContent = error.message; }
   }
 
+  function normalizeSimulationHex(value) {
+    var normalized = String(value || '').trim().toUpperCase();
+    return /^#[0-9A-F]{6}$/.test(normalized) ? normalized : null;
+  }
+
+  async function submitSimulation(event) {
+    event.preventDefault();
+    var hexInput = document.getElementById('simulation-hex');
+    var colorInput = document.getElementById('simulation-color');
+    var typeInput = document.getElementById('simulation-type');
+    var severityInput = document.getElementById('simulation-severity');
+    var simulationStatus = document.getElementById('simulation-status');
+    var hex = normalizeSimulationHex(hexInput.value);
+    if (!hex) {
+      simulationStatus.textContent = 'El color debe usar formato #RRGGBB.';
+      return;
+    }
+    var severity = Number(severityInput.value);
+    simulationStatus.textContent = 'Simulando...';
+    try {
+      var data = await request('/api/v1/simulate', {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hex: hex, type: typeInput.value, severity: severity })
+      });
+      hexInput.value = data.original;
+      colorInput.value = data.original;
+      document.getElementById('simulation-original').style.backgroundColor = data.original;
+      document.getElementById('simulation-output').style.backgroundColor = data.simulated;
+      document.getElementById('simulation-original-value').textContent = data.original;
+      document.getElementById('simulation-output-value').textContent = data.simulated;
+      simulationStatus.textContent = 'Modelo ' + data.model + ' · severidad ' + Number(data.severity).toFixed(2) + '.';
+    } catch (error) {
+      simulationStatus.textContent = 'No se pudo simular: ' + error.message;
+    }
+  }
+
+  function initSimulation() {
+    var form = document.getElementById('simulation-form');
+    var hexInput = document.getElementById('simulation-hex');
+    var colorInput = document.getElementById('simulation-color');
+    var severityInput = document.getElementById('simulation-severity');
+    var severityValue = document.getElementById('simulation-severity-value');
+    colorInput.addEventListener('input', function () { hexInput.value = colorInput.value.toUpperCase(); });
+    hexInput.addEventListener('input', function () {
+      var normalized = normalizeSimulationHex(hexInput.value);
+      if (normalized) colorInput.value = normalized;
+    });
+    severityInput.addEventListener('input', function () { severityValue.textContent = Number(severityInput.value).toFixed(2); });
+    form.addEventListener('submit', submitSimulation);
+    document.getElementById('simulation-original').style.backgroundColor = '#FF0000';
+    void submitSimulation({ preventDefault: function () {} });
+  }
+
   async function submitTest(event) {
     event.preventDefault();
     var form = event.currentTarget;
@@ -119,5 +173,6 @@
   [typeSelect, severitySelect, modeSelect, highContrast].forEach(function (control) { control.addEventListener('change', loadTheme); });
   document.getElementById('custom-form').addEventListener('submit', submitCustom);
   document.getElementById('quick-test').addEventListener('submit', submitTest);
+  initSimulation();
   init();
 }());

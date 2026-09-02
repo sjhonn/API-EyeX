@@ -55,3 +55,32 @@ func TestPaletteCount(t *testing.T) {
 		t.Fatalf("expected 3 variants, got %d", len(got))
 	}
 }
+
+func TestMachadoContinuousSeverity(t *testing.T) {
+	got, err := SimulateHexSeverity("#FF0000", Protanopia, 0.65)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "#A05A00" {
+		t.Fatalf("expected #A05A00, got %s", got)
+	}
+}
+
+func TestMachadoZeroSeverityIsIdentity(t *testing.T) {
+	got, err := SimulateHexSeverity("#12abEF", Deuteranopia, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "#12ABEF" {
+		t.Fatalf("expected identity color, got %s", got)
+	}
+}
+
+func TestMachadoRejectsSeverityOutsideRange(t *testing.T) {
+	if _, err := SimulateHexSeverity("#336699", Tritanopia, -0.1); err == nil {
+		t.Fatal("expected severity error")
+	}
+	if _, err := SimulateHexSeverity("#336699", Tritanopia, 1.1); err == nil {
+		t.Fatal("expected severity error")
+	}
+}

@@ -16,6 +16,8 @@ import (
 )
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+
 	cfg, err := config.Load(".env")
 	if err != nil {
 		slog.Error("configuration error", "error", err)
@@ -23,7 +25,22 @@ func main() {
 	}
 
 	api := handlers.New("frontend/html-js")
-	handler := middleware.Chain(api.Routes(), middleware.Recover, middleware.Logging, middleware.CORS(cfg.AllowedOrigin))
+	metrics := middleware.NewMetricsRegistry()
+	root := http.NewServeMux()
+	root.Handle("/metrics", metrics.Handler())
+	root.Handle("/", api.Routes())
+
+	handler := middleware.Chain(
+		root,
+		middleware.Recover,
+		middleware.Logging,
+		metrics.Middleware,
+		middleware.SecurityHeaders(cfg.Environment),
+		middleware.CORS(cfg.AllowedOrigin),
+		middleware.RequireHTTPS(cfg.Environment),
+		middleware.RateLimit(cfg.RateLimitPerMinute, cfg.APIKey),
+		middleware.RequestTimeout(cfg.RequestTimeout),
+	)
 
 	server := &http.Server{
 		Addr:              cfg.Address,
@@ -35,7 +52,7 @@ func main() {
 	}
 
 	go func() {
-		slog.Info("EyeX API listening", "address", cfg.Address)
+		slog.Info("EyeX API listening", "address", cfg.Address, "environment", cfg.Environment)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("server failed", "error", err)
 			os.Exit(1)

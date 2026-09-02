@@ -40,3 +40,15 @@ pre { margin: 14px 0 0; padding: 16px; overflow: auto; background: var(--code-bg
 @media (max-width: 900px) { .controls-grid { grid-template-columns: 1fr 1fr; } .color-inputs { grid-template-columns: repeat(4, 1fr); } }
 @media (max-width: 820px) { .hero-grid, .demo-layout, .docs-grid, .integration-grid { grid-template-columns: 1fr; } .hero { padding-top: 38px; } h1 { font-size: 32px; } }
 @media (max-width: 560px) { .topbar-inner { align-items: flex-start; padding: 14px 0; } .nav { gap: 12px; } .controls-grid, .color-inputs { grid-template-columns: 1fr; } .messages { grid-template-columns: 1fr; } .sample-actions { flex-direction: column; } }
+.simulation-grid { display: grid; grid-template-columns: minmax(280px, .8fr) minmax(320px, 1.2fr); gap: 24px; align-items: start; }
+.simulation-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end; }
+.simulation-form .button { min-height: 38px; }
+.simulation-form input:not([type="range"]), .simulation-form select { width: 100%; min-height: 38px; padding: 6px 9px; border: 1px solid var(--border); background: var(--eyex-surface); color: var(--eyex-text); }
+.simulation-form input[type="color"] { padding: 2px; }
+.simulation-form input[type="range"] { width: 100%; accent-color: var(--eyex-primary); }
+.simulation-result { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.simulation-result .status { grid-column: 1 / -1; }
+.simulation-swatch { min-height: 150px; border: 1px solid var(--border); display: flex; align-items: flex-end; padding: 12px; }
+.simulation-swatch span { background: rgba(255,255,255,.94); color: #20252B; padding: 7px 9px; font: 12px Consolas, monospace; }
+@media (max-width: 820px) { .simulation-grid { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .simulation-form, .simulation-result { grid-template-columns: 1fr; } .simulation-result .status { grid-column: auto; } }

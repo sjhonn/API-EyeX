@@ -48,3 +48,35 @@ type QuickTestResponse struct {
 	SuggestedType string `json:"suggested_type"`
 	Disclaimer    string `json:"disclaimer"`
 }
+
+type SimulateRequest struct {
+	Hex      string   `json:"hex"`
+	Type     string   `json:"type"`
+	Severity *float64 `json:"severity,omitempty"`
+}
+
+type SimulateResponse struct {
+	Original  string  `json:"original"`
+	Simulated string  `json:"simulated"`
+	Type      string  `json:"type"`
+	Severity  float64 `json:"severity"`
+	Model     string  `json:"model"`
+}
+
+type SimulatedColor struct {
+	Original  string `json:"original"`
+	Simulated string `json:"simulated"`
+}
+
+type SimulateBatchRequest struct {
+	Colors   []string `json:"colors"`
+	Type     string   `json:"type"`
+	Severity *float64 `json:"severity,omitempty"`
+}
+
+type SimulateBatchResponse struct {
+	Type     string           `json:"type"`
+	Severity float64          `json:"severity"`
+	Model    string           `json:"model"`
+	Results  []SimulatedColor `json:"results"`
+}
