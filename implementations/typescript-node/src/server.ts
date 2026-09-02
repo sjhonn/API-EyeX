@@ -223,9 +223,26 @@ const app = Fastify({ logger: true });
 await app.register(cors, { origin: process.env.EYEX_ALLOWED_ORIGIN || '*', methods: ['GET', 'POST', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Accept', 'Accept-Language', 'If-None-Match', 'X-API-Key'] });
 
 app.setErrorHandler((error, _request, reply) => {
-  if (error.statusCode === 400) return reply.code(400).send({ error: 'invalid_request', message: 'JSON de entrada inválido' });
+  const statusCode =
+    typeof error === 'object' &&
+    error !== null &&
+    'statusCode' in error &&
+    typeof error.statusCode === 'number'
+      ? error.statusCode
+      : undefined;
+
+  if (statusCode === 400) {
+    return reply.code(400).send({
+      error: 'invalid_request',
+      message: 'JSON de entrada inválido',
+    });
+  }
+
   app.log.error(error);
-  return reply.code(500).send({ error: 'internal_server_error', message: 'Error interno del servidor' });
+  return reply.code(500).send({
+    error: 'internal_server_error',
+    message: 'Error interno del servidor',
+  });
 });
 app.setNotFoundHandler((_request, reply) => reply.code(404).send({ error: 'not_found', message: 'Recurso no encontrado' }));
 

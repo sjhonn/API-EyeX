@@ -1,5 +1,6 @@
 # Public EyeX v1 contract. Core API schemas are kept in parity across Go, PHP, TypeScript/Node and Java.
 openapi: 3.0.3
+
 info:
   title: EyeX API
   version: 1.2.0
@@ -12,9 +13,16 @@ info:
     rate limiting, HTTPS obligatorio en produccion, timeout y metricas Prometheus.
   license:
     name: MIT
+    url: https://opensource.org/license/mit
+
 servers:
   - url: http://localhost:8080
     description: Entorno local
+
+# EyeX v1 es una API publica. X-API-Key es opcional y se utiliza
+# para omitir el rate limit publico; no constituye autenticacion obligatoria.
+security: []
+
 paths:
   /api/v1/theme/types:
     get:
